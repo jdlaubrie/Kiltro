@@ -3,11 +3,12 @@ function einsum(index,A,B)
       two order tensors."""
   # tensor product of two second order tensor A_ij B_kl
   if index == "ijkl"
-    C=zeros(Float64,3,3,3,3)
-    for i in 1:3
-      for j in 1:3
-        for k in 1:3
-          for l in 1:3
+    dimi=size(A,1); dimj=size(A,2); dimk=size(B,1); diml=size(B,2)
+    C=zeros(Float64,dimi,dimj,dimk,diml)
+    for i in 1:dimi
+      for j in 1:dimj
+        for k in 1:dimk
+          for l in 1:diml
             C[i,j,k,l] += A[i,j]*B[k,l]
           end
         end
@@ -15,11 +16,12 @@ function einsum(index,A,B)
     end
   # tensor product of two second order tensor A_ik B_jl with permutation
   elseif index == "ikjl"
-    C=zeros(Float64,3,3,3,3)
-    for i in 1:3
-      for j in 1:3
-        for k in 1:3
-          for l in 1:3
+    dimi=size(A,1); dimk=size(A,2); dimj=size(B,1); diml=size(B,2)
+    C=zeros(Float64,dimi,dimj,dimk,diml)
+    for i in 1:dimi
+      for j in 1:dimj
+        for k in 1:dimk
+          for l in 1:diml
             C[i,j,k,l] += A[i,k]*B[j,l]
           end
         end
@@ -27,11 +29,12 @@ function einsum(index,A,B)
     end
   # tensor product of two second order tensor A_il B_jk with permutation
   elseif index == "iljk"
-    C=zeros(Float64,3,3,3,3)
-    for i in 1:3
-      for j in 1:3
-        for k in 1:3
-          for l in 1:3
+    dimi=size(A,1); diml=size(A,2); dimj=size(B,1); dimk=size(B,2)
+    C=zeros(Float64,dimi,dimj,dimk,diml)
+    for i in 1:dimi
+      for j in 1:dimj
+        for k in 1:dimk
+          for l in 1:diml
             C[i,j,k,l] += A[i,l]*B[j,k]
           end
         end
@@ -44,46 +47,62 @@ function einsum(index,A,B)
   return C
 end
 
-function Voigt(C)
+function Voigt(C,ndim)
   """Transform of a fourth-order tensor into a square matrix under Voigt notation.
      Just working for 3dimension."""
-  VoigtA = zeros(Float64,6,6)
-  VoigtA[1,1] = C[1,1,1,1]
-  VoigtA[1,2] = C[1,1,2,2]
-  VoigtA[1,3] = C[1,1,3,3]
-  VoigtA[1,4] = 0.5*(C[1,1,1,2]+C[1,1,2,1])
-  VoigtA[1,5] = 0.5*(C[1,1,1,3]+C[1,1,3,1])
-  VoigtA[1,6] = 0.5*(C[1,1,2,3]+C[1,1,3,2])
-  VoigtA[2,1] = VoigtA[1,2]
-  VoigtA[2,2] = C[2,2,2,2]
-  VoigtA[2,3] = C[2,2,3,3]
-  VoigtA[2,4] = 0.5*(C[2,2,1,2]+C[2,2,2,1])
-  VoigtA[2,5] = 0.5*(C[2,2,1,3]+C[2,2,3,1])
-  VoigtA[2,6] = 0.5*(C[2,2,2,3]+C[2,2,3,2])
-  VoigtA[3,1] = VoigtA[1,3]
-  VoigtA[3,2] = VoigtA[2,3]
-  VoigtA[3,3] = C[3,3,3,3]
-  VoigtA[3,4] = 0.5*(C[3,3,1,2]+C[3,3,2,1])
-  VoigtA[3,5] = 0.5*(C[3,3,1,3]+C[3,3,3,1])
-  VoigtA[3,6] = 0.5*(C[3,3,2,3]+C[3,3,3,2])
-  VoigtA[4,1] = VoigtA[1,4]
-  VoigtA[4,2] = VoigtA[2,4]
-  VoigtA[4,3] = VoigtA[3,4]
-  VoigtA[4,4] = 0.5*(C[1,2,1,2]+C[1,2,2,1])
-  VoigtA[4,5] = 0.5*(C[1,2,1,3]+C[1,2,3,1])
-  VoigtA[4,6] = 0.5*(C[1,2,2,3]+C[1,2,3,2])
-  VoigtA[5,1] = VoigtA[1,5]
-  VoigtA[5,2] = VoigtA[2,5]
-  VoigtA[5,3] = VoigtA[3,5]
-  VoigtA[5,4] = VoigtA[4,5]
-  VoigtA[5,5] = 0.5*(C[1,3,1,3]+C[1,3,3,1])
-  VoigtA[5,6] = 0.5*(C[1,3,2,3]+C[1,3,3,2])
-  VoigtA[6,1] = VoigtA[1,6]
-  VoigtA[6,2] = VoigtA[2,6]
-  VoigtA[6,3] = VoigtA[3,6]
-  VoigtA[6,4] = VoigtA[4,6]
-  VoigtA[6,5] = VoigtA[5,6]
-  VoigtA[6,6] = 0.5*(C[2,3,2,3]+C[2,3,3,2])
+  if ndim==3
+    VoigtA = zeros(Float64,6,6)
+    VoigtA[1,1] = C[1,1,1,1]
+    VoigtA[1,2] = C[1,1,2,2]
+    VoigtA[1,3] = C[1,1,3,3]
+    VoigtA[1,4] = 0.5*(C[1,1,1,2]+C[1,1,2,1])
+    VoigtA[1,5] = 0.5*(C[1,1,1,3]+C[1,1,3,1])
+    VoigtA[1,6] = 0.5*(C[1,1,2,3]+C[1,1,3,2])
+    VoigtA[2,1] = VoigtA[1,2]
+    VoigtA[2,2] = C[2,2,2,2]
+    VoigtA[2,3] = C[2,2,3,3]
+    VoigtA[2,4] = 0.5*(C[2,2,1,2]+C[2,2,2,1])
+    VoigtA[2,5] = 0.5*(C[2,2,1,3]+C[2,2,3,1])
+    VoigtA[2,6] = 0.5*(C[2,2,2,3]+C[2,2,3,2])
+    VoigtA[3,1] = VoigtA[1,3]
+    VoigtA[3,2] = VoigtA[2,3]
+    VoigtA[3,3] = C[3,3,3,3]
+    VoigtA[3,4] = 0.5*(C[3,3,1,2]+C[3,3,2,1])
+    VoigtA[3,5] = 0.5*(C[3,3,1,3]+C[3,3,3,1])
+    VoigtA[3,6] = 0.5*(C[3,3,2,3]+C[3,3,3,2])
+    VoigtA[4,1] = VoigtA[1,4]
+    VoigtA[4,2] = VoigtA[2,4]
+    VoigtA[4,3] = VoigtA[3,4]
+    VoigtA[4,4] = 0.5*(C[1,2,1,2]+C[1,2,2,1])
+    VoigtA[4,5] = 0.5*(C[1,2,1,3]+C[1,2,3,1])
+    VoigtA[4,6] = 0.5*(C[1,2,2,3]+C[1,2,3,2])
+    VoigtA[5,1] = VoigtA[1,5]
+    VoigtA[5,2] = VoigtA[2,5]
+    VoigtA[5,3] = VoigtA[3,5]
+    VoigtA[5,4] = VoigtA[4,5]
+    VoigtA[5,5] = 0.5*(C[1,3,1,3]+C[1,3,3,1])
+    VoigtA[5,6] = 0.5*(C[1,3,2,3]+C[1,3,3,2])
+    VoigtA[6,1] = VoigtA[1,6]
+    VoigtA[6,2] = VoigtA[2,6]
+    VoigtA[6,3] = VoigtA[3,6]
+    VoigtA[6,4] = VoigtA[4,6]
+    VoigtA[6,5] = VoigtA[5,6]
+    VoigtA[6,6] = 0.5*(C[2,3,2,3]+C[2,3,3,2])
+  elseif ndim==2
+    VoigtA = zeros(Float64,3,3)
+    VoigtA[1,1] = C[1,1,1,1]
+    VoigtA[1,2] = C[1,1,2,2]
+    VoigtA[1,3] = 0.5*(C[1,1,1,2]+C[1,1,2,1])
+    VoigtA[2,1] = VoigtA[1,2]
+    VoigtA[2,2] = C[2,2,2,2]
+    VoigtA[2,3] = 0.5*(C[2,2,1,2]+C[2,2,2,1])
+    VoigtA[3,1] = VoigtA[1,3]
+    VoigtA[3,2] = VoigtA[2,3]
+    VoigtA[3,3] = 0.5*(C[1,2,1,2]+C[1,2,2,1])
+  else
+    println("Voigt dimension not understood.")
+    VoigtA = Nothing
+  end
   return VoigtA
 end
 

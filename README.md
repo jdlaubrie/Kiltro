@@ -1,2 +1,2 @@
 # Kiltro
-Finite Elements for Growth and Remodeling
+Finite Elements project for nonlinear rotation-free shell triangle.
