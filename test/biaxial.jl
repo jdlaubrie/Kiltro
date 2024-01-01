@@ -3,7 +3,7 @@ using .Kiltro
 using WriteVTK
 
 #======================== MESH ===========================#
-# Mesh input to the problem, this case a hexaedra of l=1.0.
+# Mesh input to the problem, this case a square of l=1.0.
 points = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
 elements = [1 2 4; 2 3 4]
 edges = [1 2; 2 3; 3 4; 4 1]
@@ -27,17 +27,17 @@ kappa = 50.0*mu
 
 #===================== FORMULATION =======================#
 #sets the function space for the displacement problem
-nvar = 2
+nvar = 3
 x, w = QuadratureRule(2,-1.0,1.0)
 AllGauss, Basis, Jm = FunctionSpace(x,w)
 
 #================= BOUNDARY CONDITIONS ===================#
 #sets the boundary conditions, with symmetries (dirichlet) and the external force (neumann)
-dirichlet_flags = zeros(nnode,2).+NaN
+dirichlet_flags = zeros(nnode,3).+NaN
 dirichlet_flags[DirichletBoundary1,2] .= 0.0
 dirichlet_flags[DirichletBoundary2,1] .= 0.0
 
-neumann_flags = zeros(nnode,2).+NaN
+neumann_flags = zeros(nnode,3).+NaN
 neumann_flags[NeumannBoundary1,1] .= 0.01
 #neumann_flags[NeumannBoundary2,2] .= 0.01
 

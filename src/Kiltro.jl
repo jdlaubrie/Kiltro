@@ -48,25 +48,26 @@ end
 
 function Material(mu,kappa,F)
   """It computes the stress and elasticity of the material from the deformation gradient"""
-  I = [1.0 0.0; 0.0 1.0]
+  ndim = size(F,1)
+  Id = Matrix{Float64}(I,ndim,ndim)
   J = det(F)
-  b = F*transpose(F)
-  trb = tr(b)
+  C = transpose(F)*F
+  trC = tr(C)
+  invC = inv(C)
 
-  energy = 0.5*mu*(trb -3.0)
+  energy = 0.5*mu*(trC -3.0)
 
-  stress = mu*J^(-5.0/3.0)*(b - 1.0/3.0*trb*I) + kappa*(J-1.0)*I
+  stress = mu*J^(-2.0/3.0)*(Id - 1.0/3.0*trC*invC) + kappa*J*(J-1.0)*invC
 
-  II_ijkl = einsum("ijkl",I,I)
-  II_ikjl = einsum("ikjl",I,I)
-  II_iljk = einsum("iljk",I,I)
-  bI_ijkl = einsum("ijkl",b,I)
-  Ib_ijkl = einsum("ijkl",I,b)
-  elasticity = 2*mu*J^(-5.0/3.0)*(1.0/9.0*trb*II_ijkl - 1.0/3.0*(bI_ijkl + Ib_ijkl) + 1.0/6.0*trb*(II_ikjl + II_iljk) )
-  elasticity += kappa*((2.0*J-1.0)*II_ijkl - (J-1.0)*(II_ikjl + II_iljk))
-  H_Voigt = Voigt(elasticity,2)
+  II_ijkl = einsum("ijkl",invC,invC)
+  II_ikjl = einsum("ikjl",invC,invC)
+  II_iljk = einsum("iljk",invC,invC)
+  CI_ijkl = einsum("ijkl",Id,invC)
+  IC_ijkl = einsum("ijkl",invC,Id)
+  elasticity = 2.0*mu*J^(-2.0/3.0)*(1.0/9.0*trC*II_ijkl - 1.0/3.0*(CI_ijkl + IC_ijkl) + 1.0/6.0*trC*(II_ikjl + II_iljk) )
+  elasticity += kappa*J*((2.0*J-1.0)*II_ijkl - (J-1.0)*(II_ikjl + II_iljk))
 
-  return stress, H_Voigt
+  return stress, elasticity
 end
 
 #======================================================================#
@@ -418,6 +419,7 @@ function KinematicMeasures(AllGauss,Jm,LagrangeElemCoords,EulerElemCoords)
       end
     end
   end
+
   #F = np.einsum('ij,kli->kjl', EulerElemCoords[nnode,ndim], MaterialGradient[ngaus,ndim,nnode])
   F = zeros(size(MaterialGradient,1),size(EulerElemCoords,2),size(MaterialGradient,2))
   for i in 1:size(EulerElemCoords,1)
@@ -430,205 +432,85 @@ function KinematicMeasures(AllGauss,Jm,LagrangeElemCoords,EulerElemCoords)
     end
   end
 
-  #ParentGradientx = np.einsum('ijk,jl->kil',Jm[ndim,nnode,ngaus], EulerElemCoords[nnode,ndim])
-  ParentGradientx = zeros(size(Jm,3),size(Jm,1),size(EulerElemCoords,2))
-  for i in 1:size(Jm,1)
-    for j in 1:size(Jm,2)
-      for k in 1:size(Jm,3)
-        for l in 1:size(EulerElemCoords,2)
-          ParentGradientx[k,i,l] += Jm[i,j,k]*EulerElemCoords[j,l]
-        end
-      end
-    end
-  end
-  #SpatialGradient = np.einsum('ijk,kli->ilj',inv(ParentGradientx[ngaus,ndim,ndim]), Jm[ndim,nnode,ngaus])
-  invParentGradientx = zeros(size(ParentGradientx,1),size(ParentGradientx,2),size(ParentGradientx,3))
-  for i in 1:size(ParentGradientx,1)
-    invParentGradientx[i,:,:] = inv(ParentGradientx[i,:,:])
-  end
-  SpatialGradient = zeros(size(ParentGradientx,1),size(Jm,2),size(ParentGradientx,2))
-  for i in 1:size(invParentGradientx,1)
-    for j in 1:size(invParentGradientx,2)
-      for k in 1:size(Jm,1)
-        for l in 1:size(Jm,2)
-          SpatialGradient[i,l,j] += invParentGradientx[i,j,k]*Jm[k,l,i]
-        end
-      end
-    end
-  end
   #detJ = np.einsum('i,i,i->i',AllGauss[:,0],np.abs(det(ParentGradientX)),np.abs(StrainTensors['J']))
-  detJ = zeros(size(AllGauss,1))
+  dV = zeros(size(AllGauss,1))
   for i in 1:size(AllGauss,1)
     detParentGradientX = abs(det(ParentGradientX[i,:,:]))
-    J = det(F[i,:,:])
-    detJ[i] = AllGauss[i]*detParentGradientX*J
+    dV[i] = AllGauss[i]*detParentGradientX
   end
-  return SpatialGradient,F,detJ
+  return MaterialGradient,F,dV
 end
-#SpatialGradient[ngaus,nnode,ndim],F[ngaus,ndim,ndim],detJ[ngaus]
-#======================================================================#
-
-function FillConstitutiveB(SpatialGradient,ndim,nvar,VoigtSize)
-  """It fills the B-matrix (or N-gradient) to multiply the the elasticity tensor for
-     its integration in the element."""
-
-  nodeperelem = size(SpatialGradient,2)
-  B = zeros(nodeperelem*nvar,VoigtSize)
-
-  if ndim==2
-  for node in 1:nodeperelem
-    B[nvar*node-1,1] = SpatialGradient[1,node]
-    B[nvar*node,2] = SpatialGradient[2,node]
-
-    B[nvar*node-1,3] = SpatialGradient[2,node]
-    B[nvar*node,3] = SpatialGradient[1,node]
-  end
-  elseif ndim==3
-  for node in 1:nodeperelem
-    B[nvar*node-2,1] = SpatialGradient[1,node]
-    B[nvar*node-1,2] = SpatialGradient[2,node]
-    B[nvar*node,3] = SpatialGradient[3,node]
-
-    B[nvar*node-1,6] = SpatialGradient[3,node]
-    B[nvar*node,6] = SpatialGradient[2,node]
-
-    B[nvar*node-2,5] = SpatialGradient[3,node]
-    B[nvar*node,5] = SpatialGradient[1,node]
-
-    B[nvar*node-2,4] = SpatialGradient[2,node]
-    B[nvar*node-1,4] = SpatialGradient[1,node]
-  end
-  end
-  return B
-end
+#MaterialGradient[ngaus,ndim,nodesperelem],F[ngaus,ndim,ndim],detJ[ngaus]
 
 #======================================================================#
 
-function FillGeometricB(SpatialGradient,CauchyStress,ndim,nvar)
-  """It fills the geometric B-matrix to be multiply with the stress
-     to get the geometric stiffness matrix from integration."""
-
-  nodeperelem = size(SpatialGradient,2)
-  B = zeros(nvar*nodeperelem,ndim*ndim)
-  S = zeros(ndim*ndim,ndim*ndim)
-
-  if ndim==2
-  for node in 1:nodeperelem
-    B[nvar*node-1,1] = SpatialGradient[1,node]
-    B[nvar*node-1,2] = SpatialGradient[2,node]
-    B[nvar*node,3] = SpatialGradient[1,node]
-    B[nvar*node,4] = SpatialGradient[2,node]
-
-  end
-
-  S[1,1] = CauchyStress[1,1]
-  S[1,2] = CauchyStress[1,2]
-  S[2,1] = CauchyStress[2,1]
-  S[2,2] = CauchyStress[2,2]
-
-  S[3,3] = CauchyStress[1,1]
-  S[3,4] = CauchyStress[1,2]
-  S[4,3] = CauchyStress[2,1]
-  S[4,4] = CauchyStress[2,2]
-
-  elseif ndim==3
-  for node in 1:nodeperelem
-    B[nvar*node-2,1] = SpatialGradient[1,node]
-    B[nvar*node-2,2] = SpatialGradient[2,node]
-    B[nvar*node-2,3] = SpatialGradient[3,node]
-    B[nvar*node-1,4] = SpatialGradient[1,node]
-    B[nvar*node-1,5] = SpatialGradient[2,node]
-    B[nvar*node-1,6] = SpatialGradient[3,node]
-    B[nvar*node,7] = SpatialGradient[1,node]
-    B[nvar*node,8] = SpatialGradient[2,node]
-    B[nvar*node,9] = SpatialGradient[3,node]
-  end
-
-  S[1,1] = CauchyStress[1,1]
-  S[1,2] = CauchyStress[1,2]
-  S[1,3] = CauchyStress[1,3]
-  S[2,1] = CauchyStress[2,1]
-  S[2,2] = CauchyStress[2,2]
-  S[2,3] = CauchyStress[2,3]
-  S[3,1] = CauchyStress[3,1]
-  S[3,2] = CauchyStress[3,2]
-  S[3,3] = CauchyStress[3,3]
-
-  S[4,4] = CauchyStress[1,1]
-  S[4,5] = CauchyStress[1,2]
-  S[4,6] = CauchyStress[1,3]
-  S[5,4] = CauchyStress[2,1]
-  S[5,5] = CauchyStress[2,2]
-  S[5,6] = CauchyStress[2,3]
-  S[6,4] = CauchyStress[3,1]
-  S[6,5] = CauchyStress[3,2]
-  S[6,6] = CauchyStress[3,3]
-
-  S[7,7] = CauchyStress[1,1]
-  S[7,8] = CauchyStress[1,2]
-  S[7,9] = CauchyStress[1,3]
-  S[8,7] = CauchyStress[2,1]
-  S[8,8] = CauchyStress[2,2]
-  S[8,9] = CauchyStress[2,3]
-  S[9,7] = CauchyStress[3,1]
-  S[9,8] = CauchyStress[3,2]
-  S[9,9] = CauchyStress[3,3]
-  end
-
-  return B,S
-end
-
-#======================================================================#
-
-function GetTotalTraction(CauchyStress,ndim)
-  """Returns the stress as a vector into Voigt notation."""
-  if ndim==2
-  TotalTraction = zeros(3)
-  TotalTraction[1] = CauchyStress[1,1]
-  TotalTraction[2] = CauchyStress[2,2]
-  TotalTraction[3] = CauchyStress[1,2]
-  elseif ndim==3
-  TotalTraction = zeros(6)
-  TotalTraction[1] = CauchyStress[1,1]
-  TotalTraction[2] = CauchyStress[2,2]
-  TotalTraction[3] = CauchyStress[3,3]
-  TotalTraction[4] = CauchyStress[1,2]
-  TotalTraction[5] = CauchyStress[1,3]
-  TotalTraction[6] = CauchyStress[2,3]
-  end
-  return TotalTraction
-end
-
-#======================================================================#
-
-function ConstitutiveStiffnessIntegrand(SpatialGradient, CauchyStress, H_Voigt)
+function ConstitutiveStiffnessIntegrand(MaterialGradient, F, Stress, Hessian)
   """Applies to displacement based formulation, to integrate the constitutive stiffness"""
-  ndim = 2
-  nvar = 2
-  VoigtSize = size(H_Voigt,1)
-  # SpatialGradient[ndim,nodesperelem] and B[nodesperelem*nvar,VoigtSize]
-  SpatialGradient = transpose(SpatialGradient)
-  B = FillConstitutiveB(SpatialGradient,ndim,nvar,VoigtSize)
 
-  BDB = B*(H_Voigt*(transpose(B)))
+  # MaterialGradient[ndim,nodesperelem]
+  ndim = size(MaterialGradient,1)
+  nodesperelem = size(MaterialGradient,2)
 
-  t=zeros(size(B,1))
-  TotalTraction = GetTotalTraction(CauchyStress,ndim)
-  t = B*TotalTraction
+  BDB = zeros(nodesperelem*ndim,nodesperelem*ndim)
+  for a in 1:nodesperelem
+    for b in 1:nodesperelem
+      for m in 1:ndim
+        for n in 1:ndim
+          for i in 1:ndim
+            for j in 1:ndim
+              for k in 1:ndim
+                for l in 1:ndim
+                  BDB[a*m,b*n] += F[m,j]*MaterialGradient[i,a]*Hessian[i,j,k,l]*MaterialGradient[k,b]*F[n,l]
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
+  #t0 = np.einsum('ia,ij->aj', MaterialGradient[ndim,nodesperelem],Stress[ndim,ndim])
+  #t = np.einsum('aj,kj->ak', t0[nodesperelem,ndim],F[ndim,ndim])
+  t = zeros(nodesperelem*ndim)
+  for a in 1:nodesperelem
+    for k in 1:ndim
+      for i in 1:ndim
+        for j in 1:ndim
+            t[a*k] += F[k,j]*MaterialGradient[i,a]*Stress[i,j]
+        end
+      end
+    end
+  end
 
   return BDB, t
 end
 
 #======================================================================#
 
-function GeometricStiffnessIntegrand(SpatialGradient, CauchyStress,ndim,nvar)
+function GeometricStiffnessIntegrand(MaterialGradient, Stress)
     """Applies to displacement based, displacement potential based and all mixed
     formulations that involve static condensation"""
 
-  SpatialGradient = transpose(SpatialGradient)
+  # MaterialGradient[ndim,nodesperelem]
+  ndim = size(MaterialGradient,1)
+  nodesperelem = size(MaterialGradient,2)
+  delta = Matrix{Float64}(I,ndim,ndim)
 
-  B,S = FillGeometricB(SpatialGradient,CauchyStress,ndim,nvar)
-  BDB = (B*S)*transpose(B)
+  BDB = zeros(nodesperelem*ndim,nodesperelem*ndim)
+  for a in 1:nodesperelem
+    for b in 1:nodesperelem
+      for m in 1:ndim
+        for n in 1:ndim
+          for i in 1:ndim
+            for j in 1:ndim
+              BDB[a*m,b*n] += MaterialGradient[i,a]*Stress[i,j]*MaterialGradient[j,b]*delta[m,n]
+            end
+          end
+        end
+      end
+    end
+  end
 
   return BDB
 end
@@ -652,20 +534,20 @@ function Assemble(AllGauss,Basis,Jm,points,elements,mu,kappa,Eulerx,ndim,nvar)
 
     stiffness = zeros(nodeperelem*nvar,nodeperelem*nvar)
     tractionforce = zeros(nodeperelem*nvar)
-    #SpatialGradient[ngaus,nodesperelem,ndim],F[ngaus,ndim,ndim],detJ[ngaus]
-    SpatialGradient,F,detJ = KinematicMeasures(AllGauss,Jm,LagrangeElemCoords,EulerElemCoords)
+    #MaterialGradient[ngaus,nodesperelem,ndim],F[ngaus,ndim,ndim],dV[ngaus]
+    MaterialGradient,F,dA = KinematicMeasures(AllGauss,Jm,LagrangeElemCoords,EulerElemCoords)
 
     for counter in 1:size(AllGauss,1)
       # COMPUTE CAUCHY STRESS AND HESSIAN FROM MATERIAL AT GAUSS POINT
-      CauchyStress,H_Voigt = Material(mu,kappa,F[counter,:,:])
+      MaterialStress,MaterialHessian = Material(mu,kappa,F[counter,:,:])
       # COMPUTE THE TANGENT STIFFNESS MATRIX
-      BDB_1, t = ConstitutiveStiffnessIntegrand(SpatialGradient[counter,:,:], CauchyStress, H_Voigt)
+      BDB_1, t = ConstitutiveStiffnessIntegrand(MaterialGradient[counter,:,:], F[counter,:,:], MaterialStress, MaterialHessian)
       # COMPUTE GEOMETRIC STIFFNESS MATRIX
-      BDB_1 += GeometricStiffnessIntegrand(SpatialGradient[counter,:,:],CauchyStress,ndim,nvar)
+      BDB_1 += GeometricStiffnessIntegrand(MaterialGradient[counter,:,:], MaterialStress)
       # INTEGRATE TRACTION FORCE
-      tractionforce += t*detJ[counter]
+      tractionforce += t*dA[counter]
       # INTEGRATE STIFFNESS
-      stiffness += BDB_1*detJ[counter]
+      stiffness += BDB_1*dA[counter]
     end
 
     for i in 0:(nvar-1)
@@ -833,7 +715,7 @@ function Solve(AllGauss,Basis,Jm,points,elements,mu,kappa,dirichlet_flags,neuman
   # INITIATE DATA FOR THE ANALYSIS
   NodalForces = zeros(size(points,1)*nvar)
   Residual = zeros(size(points,1)*nvar)
-  TotalDisp = zeros(size(points,1),nvar,LoadIncrements)
+  TotalDisp = zeros(size(points,1),ndim,LoadIncrements)
 
   println("Assembling the system and acquiring neccessary information for the analysis...")
 

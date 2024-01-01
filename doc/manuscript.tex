@@ -1,0 +1,467 @@
+\documentclass[12pt]{article}
+\usepackage[letterpaper]{geometry}
+\geometry{inner=20mm,outer=20mm,top=20mm,bottom=10mm}
+\usepackage{amsmath}        %math symbols
+\usepackage{amsfonts}       %math fonts
+%\usepackage{indentfirst}
+\usepackage{pgf}            %some picture
+\usepackage{textcomp} 
+\usepackage{graphicx}       %import pictures
+\usepackage{hyperref}       %references inside the document \ref{} \label{}
+\usepackage{makeidx}
+\usepackage{fancyhdr} 
+\usepackage{multirow}       %to merge cells in tables
+\usepackage{mathrsfs}
+\usepackage{longtable}      %big tables
+\usepackage{rotating} 
+\usepackage{color}          %color
+\usepackage{ifthen}
+\usepackage{fancybox}       %rounded boxes
+\usepackage{epstopdf}       %pdf and eps pictures
+\usepackage[english]{babel} %english language
+\usepackage[utf8]{inputenc} %characters
+\usepackage{caption}        %title in the pictures and tables
+\usepackage{cmbright}       %sans-serif fonts
+%\usepackage{ulem}
+%\usepackage[spanish]{babel}
+%\usepackage{natbib}
+%% bibliography
+\usepackage[backend=bibtex,style=ieee,sorting=none]{biblatex} %bibliography
+\addbibresource{references.bib} %bibliography document
+%------------------------------------------------------------------------------
+\usepackage{pgf,tikz}             %% tikz to make pictures in with latex
+\usepackage[siunitx]{circuitikz}  %% working with tikz to draw circuits
+\usetikzlibrary{spy}
+\usetikzlibrary{backgrounds}
+\usetikzlibrary{calc}
+\usetikzlibrary{decorations}
+\usetikzlibrary{decorations.pathmorphing,patterns}
+\usetikzlibrary{decorations.markings}
+\usetikzlibrary{intersections}
+\usetikzlibrary{positioning}
+\usepgflibrary{shapes.geometric}
+\tikzstyle{spring}=[thick,decorate,decoration={aspect=0.5, segment length=3mm, amplitude=2mm, coil}]
+% Vector Styles
+\tikzstyle{load}   = [ultra thick,-latex]
+\tikzstyle{stress} = [-latex]
+\tikzstyle{dim}    = [latex-latex]
+\tikzstyle{dimr}   = [-latex]
+\tikzstyle{axis}   = [-latex,black!55]
+% Define block styles
+\tikzstyle{decision} = [diamond, draw, fill=gray!20, 
+    text width=3em, text badly centered, node distance=1.2cm, inner sep=0pt]
+\tikzstyle{block} = [rectangle, draw, fill=gray!20, 
+    text width=6em, text centered, rounded corners, minimum height=0.1em]
+\tikzstyle{line} = [draw, -latex']
+\tikzstyle{cloud} = [draw, ellipse,fill=red!20, node distance=1.3cm,
+    minimum height=0.1em]
+%
+\setlength{\parindent}{0cm}
+%------------------------------------------------------------------------------
+\newcommand{\tr}{\mathop{\rm tr }}
+\newcommand{\cofactor}{\mathop{\rm cofactor }}
+\newcommand{\dif}{\mathop{\rm\mbox{} d}}
+\newcommand{\Grad}{\mathop{\rm Grad }}
+\newcommand{\grad}{\mathop{\rm grad }}
+\newcommand{\adj}{\mathop{\rm adj }}
+\newcommand{\dive}{\mathop{\rm div }}
+\newcommand{\bm} [1] {\boldsymbol{#1}}
+\newcommand{\mx}{\mathop{\rm max }}
+\newcommand{\trp}{\mathrm T}
+%------------------------------------------------------------------------------
+
+%------------------------------------------------------------------------------
+\date{}
+\title{Free-rotation shell theory}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\author{Joan D. Laubrie}
+
+
+\setlength{\textheight}{222mm}
+\setlength{\textwidth}{168mm}
+\setlength{\oddsidemargin}{0pt}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% renovacion de comandos %%
+\renewcommand{\refname}{9\hspace*{20pt}References}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\maketitle
+
+\hyphenrules{nohyphenation}
+
+\vspace{-10mm}
+\begin{center}
+{\footnotesize \it{GitHub project}}
+\end{center}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% ABSTRATCT    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\begin{abstract}
+%\end{abstract}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% INTRODUCTION %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Introduction}\label{introduction}
+%
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%% METHODS               %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Methods}\label{methods}
+%
+\subsection{Vitual work and linearization}
+%
+\begin{equation}
+\Delta\delta\mathcal{W}(\pmb{x},\delta\pmb{u})\cdot\Delta\pmb{u} + 
+\delta\mathcal{W}(\pmb{x},\delta\pmb{u}) \approx 0.
+\end{equation}
+
+\begin{equation}
+\delta \mathcal{W}(\pmb{x},\delta\pmb{u}) = 
+\underbrace{\int_{\Omega_R}\varrho_R\pmb{\ddot{u}}\cdot\delta\pmb{u} 
+dV}_{\delta\mathcal{W}_{kin}} +
+\underbrace{\int_{\Omega_R}\pmb{S}:\delta\pmb{E} 
+dV}_{\delta\mathcal{W}_{int}} -
+\underbrace{\int_{\Omega_R}\pmb{f}\cdot\delta\pmb{u} dV 
+-\int_{\Gamma}\pmb{t}\cdot\delta\pmb{u} 
+d\Gamma}_{\delta\mathcal{W}_{ext}} = 0
+\label{virtual_work}
+\end{equation}
+
+\begin{equation}
+\delta\mathcal{W}_{int} = \int_{\Omega_R}\pmb{S}:\delta\pmb{E} dV
+ = \int_A\int_H \pmb{S}:\delta\pmb{E} d\xi_3dA
+ = \int_A \left[\pmb{N}:\delta\pmb{E}^m + \pmb{M}:\delta\pmb{\chi}\right] dA
+\end{equation}
+
+\begin{equation}
+\pmb{N} = \int_H \pmb{S} d\xi_3 \mbox{ and }
+\pmb{M} = \int_H \xi_3\pmb{S} d\xi_3
+\end{equation}
+
+\begin{equation}
+\pmb{E} = \pmb{E}^m + \xi_3\pmb{\chi}
+\end{equation}
+
+\begin{eqnarray}
+\Delta\delta\mathcal{W}_{int}\cdot\Delta\pmb{u}
+ & = & \int_A\int_H \left[\delta\pmb{E}:\mathbb{C}:\Delta\pmb{E}
+      + \pmb{S}:\Delta\delta\pmb{E}\right] d\xi_3dA \nonumber \\
+ & = & \int_A \left[\delta\pmb{E}^m:\mathbb{C}^m:\Delta\pmb{E}^m
+      + \delta\pmb{E}^m:\mathbb{C}^{mb}:\Delta\pmb{\chi}
+      + \delta\pmb{\chi}:\mathbb{C}^{mb}:\Delta\pmb{E}^m
+      + \delta\pmb{\chi}:\mathbb{C}^b:\Delta\pmb{\chi}\right] dA \nonumber \\
+ &   & + \int_A \left[\pmb{N}:\Delta\delta\pmb{E}^m
+      + \pmb{M}:\Delta\delta\pmb{\chi}\right] dA
+\end{eqnarray}
+
+\begin{equation}
+\mathbb{C}^m = \int_H \mathbb{C} d\xi_3 \mbox{ and }
+\mathbb{C}^{mb} = \int_H \xi_3 \mathbb{C} d\xi_3 \mbox{ and }
+\mathbb{C}^b = \int_H \xi^2_3 \mathbb{C} d\xi_3
+\end{equation}
+
+%
+\subsection{Strain definition}
+%
+\begin{equation}
+\pmb{E}^m = E^m_{\alpha\beta}
+ = \frac{1}{2}(a_{\alpha\beta} - A_{\alpha\beta})
+\end{equation}
+
+\begin{equation}
+A_{\alpha\beta} = \vec{A}_{\alpha}\cdot\vec{A}_{\beta} \mbox{ and }
+a_{\alpha\beta} = \vec{a}_{\alpha}\cdot\vec{a}_{\beta}
+\end{equation}
+
+\begin{equation}
+\pmb{\chi} = \chi_{\alpha\beta} = \kappa_{\alpha\beta} - \kappa^R_{\alpha\beta}
+\end{equation}
+
+\begin{equation}
+\kappa^R_{\alpha\beta} = \frac{1}{2}(\vec{A}_{\alpha}\cdot\vec{A}_{3,\beta}
+ + \vec{A}_{\beta}\cdot\vec{A}_{3,\alpha}) \mbox{ and }
+\kappa_{\alpha\beta} = \frac{1}{2}(\vec{a}_{\alpha}\cdot\vec{a}_{3,\beta}
+ + \vec{a}_{\beta}\cdot\vec{a}_{3,\alpha})
+\end{equation}
+
+\begin{equation}
+\kappa^R_{\alpha\beta} = - \vec{A}_{\beta,\alpha}\cdot\vec{A}_{3} \mbox{ and }
+\kappa_{\alpha\beta} = - \vec{a}_{\beta,\alpha}\cdot\vec{a}_{3}
+\end{equation}
+
+\begin{equation}
+\kappa_{\alpha\beta} = - \frac{1}{A^M} \int_{A^M} 
+\vec{a}_{\beta,\alpha}\cdot\vec{a}_3 dA^M
+ = - \frac{1}{A^M} \oint_{\Gamma^M} 
+n_{\alpha}\vec{a}_{\beta}\cdot\vec{a}_3 d\Gamma^M
+ = \vec{h}_{\alpha\beta}\cdot\vec{a}_3
+\end{equation}
+
+%
+\subsection{Kinematics}
+%
+\begin{equation}
+\vec{A}_{\alpha} = \vec{\varphi},^R_{\alpha}
+ = \frac{\partial \vec{\varphi}^R}{\partial \xi_{\alpha}}
+\mbox{ and }
+\vec{a}_{\alpha} = \vec{\varphi},_{\alpha}
+ = \frac{\partial \vec{\varphi}}{\partial \xi_{\alpha}}
+\end{equation}
+
+\begin{equation}
+\vec{X}(\xi_1,\xi_2,\xi_3) = \vec{\varphi}^R(\xi_1,\xi_2)
+ + \xi_3\vec{A}_3(\xi_1,\xi_2)
+\end{equation}
+
+\begin{equation}
+\vec{x}(\xi_1,\xi_2,\xi_3) = \vec{\varphi}(\xi_1,\xi_2)
+ + \xi_3\vec{a}_3(\xi_1,\xi_2)
+\end{equation}
+
+\begin{equation}
+\vec{G}_i = \frac{\partial \vec{X}}{\partial \xi_i} = \vec{G}_{\alpha} + \vec{G}_3
+\mbox{ where }
+\vec{G}_{\alpha} = \vec{A}_{\alpha} + \xi_3\vec{A}_{3,\alpha}
+\mbox{ and }
+\vec{G}_3 = \vec{A}_3
+\end{equation}
+
+\begin{equation}
+\vec{g}_i = \frac{\partial \vec{g}}{\partial \xi_i} = \vec{g}_{\alpha} + \vec{g}_3
+\mbox{ where }
+\vec{g}_{\alpha} = \vec{a}_{\alpha} + \xi_3\vec{a}_{3,\alpha}
+\mbox{ and }
+\vec{g}_3 = \vec{a}_3
+\end{equation}
+
+\begin{equation}
+G_{ij} = \vec{G}_i\cdot\vec{G}_j =
+\left(\begin{array}{cc}
+A_{\alpha\beta} + 2\xi_3\kappa^R_{\alpha\beta}
++ \xi^2_3\vec{A}_{3,\alpha}\cdot\vec{A}_{3,\beta}
+ & (\vec{A}_{\alpha} + \xi_3\vec{A}_{3,\alpha})\cdot\vec{A}_3 \\
+\vec{A}_3\cdot(\vec{A}_{\beta} + \xi_3\vec{A}_{3,\beta})
+ & \vec{A}_3\cdot\vec{A}_3
+\end{array}\right)
+ = \left(\begin{array}{cc}
+A_{\alpha\beta} + 2\xi_3\kappa^R_{\alpha\beta} & 0 \\
+ 0 & 1
+\end{array}\right)
+\end{equation}
+
+\begin{equation}
+g_{ij} = \vec{g}_i\cdot\vec{g}_j =
+\left(\begin{array}{cc}
+a_{\alpha\beta} + 2\xi_3\kappa_{\alpha\beta}
++ \xi^2_3\vec{a}_{3,\alpha}\cdot\vec{a}_{3,\beta}
+ & (\vec{a}_{\alpha} + \xi_3\vec{a}_{3,\alpha})\cdot\vec{a}_3 \\
+\vec{a}_3\cdot(\vec{a}_{\beta} + \xi_3\vec{a}_{3,\beta})
+ & \vec{a}_3\cdot\vec{a}_3
+\end{array}\right)
+ = \left(\begin{array}{cc}
+a_{\alpha\beta} + 2\xi_3\kappa_{\alpha\beta} & 0 \\
+ 0 & a_{33}
+\end{array}\right)
+\end{equation}
+
+\begin{equation}
+G_{ij} = 
+\left(\begin{array}{cc}
+A_{\alpha\beta} & 0 \\
+ 0 & 1
+\end{array}\right)
+\end{equation}
+
+\begin{equation}
+g_{ij} = 
+\left(\begin{array}{cc}
+a_{\alpha\beta} + 2\xi_3\chi_{\alpha\beta} & 0 \\
+ 0 & a_{33}
+\end{array}\right)
+\end{equation}
+
+\begin{equation}
+\pmb{F} = \frac{\partial\vec{x}}{\partial\vec{X}}
+=\frac{\partial\vec{x}}{\partial\xi_i}\otimes\frac{\partial\xi_i}{\partial\vec{X}}
+ = \vec{g}_i\otimes\vec{G}^i
+\end{equation}
+
+\begin{equation}
+\pmb{C} = \pmb{F}^T\pmb{F} = g_{ij}\vec{G}^i\otimes\vec{G}^j
+ \Rightarrow a_{33} = C_{33}
+\end{equation}
+
+\begin{equation}
+J^2 = C_{33}\frac{\det(g_{\alpha\beta})}{\det(G_{\alpha\beta})}
+\end{equation}
+
+\begin{equation}
+E_{ij} = \frac{1}{2} (g_{ij} - G_{ij}) = 
+\frac{1}{2}\left(\begin{array}{cc}
+a_{\alpha\beta} - A_{\alpha\beta} + 2\xi_3\chi_{\alpha\beta} & 0 \\
+ 0 & a_{33} -1
+\end{array}\right) = 
+\left(\begin{array}{cc}
+E^m_{\alpha\beta} + \xi_3\chi_{\alpha\beta} & 0 \\
+ 0 & E_{33}
+\end{array}\right)
+\end{equation}
+
+%
+\subsection{Discretization}
+%
+\begin{equation}
+\begin{array}{cc}
+\mbox{node 1: }(\eta_1,\eta_2)=(0,0) & \mbox{node 4: }(\eta_1,\eta_2)=(1,1) \\
+\mbox{node 2: }(\eta_1,\eta_2)=(1,0) & \mbox{node 5: }(\eta_1,\eta_2)=(-1,1) \\
+\mbox{node 3: }(\eta_1,\eta_2)=(0,1) & \mbox{node 6: }(\eta_1,\eta_2)=(1,-1)
+\end{array}
+\end{equation}
+
+\begin{equation}
+\begin{array}{ccc}
+L^1=\eta_1 & L^2=\eta_2 & L^3=1-\eta_1-\eta_2
+\end{array}
+\end{equation}
+
+\begin{equation}
+\begin{array}{cc}
+N^1 = \eta_3 + \eta_1\eta_2 & N^4 = \frac{1}{2}\eta_3(\eta_3 - 1) \\
+N^2 = \eta_1 + \eta_2\eta_3 & N^5 = \frac{1}{2}\eta_1(\eta_1 - 1) \\
+N^3 = \eta_2 + \eta_3\eta_1 & N^6 = \frac{1}{2}\eta_2(\eta_2 - 1)
+\end{array}
+\end{equation}
+
+\begin{equation}
+\eta_3 = 1 - \eta_1 - \eta_2
+\end{equation}
+
+\begin{equation}
+\vec{\varphi} = \sum^6_{a=1} N^a(\eta_1,\eta_2)\vec{\varphi}^a
+\mbox{ and }
+\vec{\varphi},_{\alpha} = \sum^6_{a=1} N,^a_{\alpha}\vec{\varphi}^a
+\end{equation}
+
+\begin{equation}
+\vec{\varphi},^I_{\alpha} = \sum_{a=1}^3 N,^a_{\alpha}\vec{\varphi}^a
+ + N,^{I+3}_{\alpha}\vec{\varphi}^{I+3}
+\end{equation}
+
+\begin{equation}
+a_{\alpha\beta} = \sum^3_{I=1} L^I a^I_{\alpha\beta}
+ = \sum^3_{I=1} L^I \vec{\varphi},^I_{\alpha}\cdot \vec{\varphi},^I_{\beta}
+\end{equation}
+
+\begin{equation}
+\vec{h}_{\alpha\beta} = \sum_{I=1}^3 (L,^I_{\alpha}\vec{\varphi},^I_{\beta}
+ + L,^I_{\beta}\vec{\varphi},^I_{\alpha})
+\end{equation}
+
+\begin{equation}
+\vec{a}_3 = \frac{\vec{\varphi},^M_1\times\vec{\varphi},^M_2}
+{|\vec{\varphi},^M_1\times\vec{\varphi},^M_2|}
+\mbox{ with }
+\vec{\varphi},^M_{\alpha} = \sum^3_{I=1} L,^I_{\alpha}\vec{\varphi}^I
+\end{equation}
+
+%
+\subsection{First variation of strain}
+%
+\begin{eqnarray}
+\delta\pmb{E}^m &=& \delta E^m_{\alpha\beta} = \frac{1}{2}\delta a_{\alpha\beta}
+ = \frac{1}{2}\sum^3_{I=1} L^I (\delta\vec{\varphi},^I_{\alpha}
+   \cdot\vec{\varphi},^I_{\beta}
+ + \vec{\varphi},^I_{\alpha}\cdot\delta\vec{\varphi},^I_{\beta}) \nonumber\\
+ &=& \frac{1}{2}\sum^3_{I=1} L^I
+  \left[\sum_{a=1}^3(N,^a_{\alpha}\cdot\vec{\varphi},^I_{\beta}
+ + \vec{\varphi},^I_{\alpha}\cdot N,^a_{\beta})\delta\vec{\varphi}^a
+ + (N,^{I+3}_{\alpha}\cdot\vec{\varphi},^I_{\beta}
+ + \vec{\varphi},^I_{\alpha}\cdot N,^{I+3}_{\beta})\delta\vec{\varphi}^{I+3}\right]
+\end{eqnarray}
+
+\begin{equation}
+\delta\pmb{\chi} = \delta \chi_{\alpha\beta} = \delta \kappa_{\alpha\beta}
+ = \delta\vec{h}_{\alpha\beta}\cdot\vec{a}_3
+ + \vec{h}_{\alpha\beta}\cdot\delta\vec{a}_3
+\end{equation}
+
+\begin{eqnarray}
+\delta\vec{h}_{\alpha\beta}\cdot\vec{a}_3 &=& \sum_{I=1}^3 (L,^I_{\alpha}
+\delta\vec{\varphi},^I_{\beta} + L,^I_{\beta}\delta\vec{\varphi},^I_{\alpha})
+\cdot\vec{a}_3 \nonumber \\
+ &=& \sum_{I=1}^3\left[
+   \sum_{a=1}^3(L,^I_{\alpha}N,^a_{\beta}
+ + L,^I_{\beta}N,^a_{\alpha})\delta\vec{\varphi}^a
+ + (L,^I_{\alpha}N,^{I+3}_{\beta}
+ + L,^I_{\beta}N,^{I+3}_{\alpha})\delta\vec{\varphi}^{I+3}
+ \right]\cdot\vec{a}_3
+\end{eqnarray}
+
+\begin{eqnarray}
+\vec{h}_{\alpha\beta}\cdot\delta\vec{a}_3 &=& \vec{h}_{\alpha\beta}\cdot
+(\delta a_{31}\vec{a}^{\diamond}_1 + \delta a_{32} \vec{a}^{\diamond}_2)
+ = -(\vec{a}_3\cdot\delta\vec{\varphi},^M_1\vec{a}^{\diamond}_1
+ + \vec{a}_3\cdot\delta\vec{\varphi},^M_2 \vec{a}^{\diamond}_2)
+ \cdot\vec{h}_{\alpha\beta} \nonumber \\
+ &=&-\left[ \sum^3_{I=1}\left( L,^I_1\vec{a}^{\diamond}_1\cdot\vec{h}_{\alpha\beta}
+  + L,^I_2\vec{a}^{\diamond}_2\cdot\vec{h}_{\alpha\beta}\right)
+    \right](\vec{a}_3\cdot\delta\vec{\varphi}^I) \\
+\end{eqnarray}
+
+\begin{equation}
+\vec{a}^{\diamond}_1 = \frac{\vec{\varphi},^M_2\times\vec{a}_3}
+{|\vec{\varphi},^M_1\times\vec{\varphi},^M_2|}
+\mbox{ and }
+\vec{a}^{\diamond}_2 = -\frac{\vec{\varphi},^M_1\times\vec{a}_3}
+{|\vec{\varphi},^M_1\times\vec{\varphi},^M_2|}
+\end{equation}
+
+%
+\subsection{Second variation of strain}
+%
+\begin{equation}
+\Delta\delta\pmb{E}^m = \Delta\delta E^m_{\alpha\beta}
+ = \frac{1}{2}\Delta\delta a_{\alpha\beta}
+ = \frac{1}{2}\sum^3_{I=1} L^I (\delta\vec{\varphi},^I_{\alpha}
+ \cdot\Delta\vec{\varphi},^I_{\beta}
+ + \Delta\vec{\varphi},^I_{\alpha}\cdot\delta\vec{\varphi},^I_{\beta})
+\end{equation}
+
+\begin{equation}
+\Delta\delta\pmb{\chi} = \Delta\delta \chi_{\alpha\beta}
+ = \Delta\delta \kappa_{\alpha\beta}
+ = \delta\vec{h}_{\alpha\beta}\cdot\Delta\vec{a}_3
+ + \Delta\vec{h}_{\alpha\beta}\cdot\delta\vec{a}_3
+\end{equation}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%% RESULTS               %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Results}\label{results}
+%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%% DISCUSSION                   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Discussion}\label{discussion}
+%
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%  CONCLUSIONS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Conclusions}\label{conclusions}
+%
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%  REFERENCES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\printbibliography
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\end{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
