@@ -1,0 +1,30 @@
+import numpy as np
+
+class FunctionSpace(object):
+
+    def __init__(self, ):
+        Bases, gBases, w = self.GetBases()
+        self.Bases = Bases
+        self.gBases = gBases
+        self.AllGauss = w
+
+    # define the function space for quadrature and iterpolation
+    def Lagrange(self, eta):
+        # simple linear function. maybe Legrange
+        N = np.array([0.5*(1-eta), 0.5*(1+eta)])
+        dN = np.array([-0.5, 0.5])
+        return N, dN
+
+    def GetBases(self,):
+        ns = 2
+        #ngauss = 2
+        z = np.array([-0.57735027, 0.57735027])
+        w = np.array([1.0,1.0])
+        Bases = np.zeros((ns,z.shape[0]), dtype=np.float64)
+        gBases = np.zeros((ns,z.shape[0]), dtype=np.float64)
+        for i in range(z.shape[0]):
+            Bases[:,i], gBases[:,i] = self.Lagrange(z[i])
+
+        return Bases, gBases, w
+
+

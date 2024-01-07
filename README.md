@@ -1,2 +1,2 @@
 # Kiltro
-Finite Elements project for nonlinear rotation-free shell triangle.
+Finite Elements project for fluid mechanics.
