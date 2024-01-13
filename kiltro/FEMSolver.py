@@ -1,5 +1,5 @@
 import numpy as np
-from kiltro import FunctionSpace, Assembly, AssemblyU
+from kiltro import FunctionSpace, Assembly, AssemblyCharacteristicGalerkin
 #from src import BoundaryCondition
 
 class FEMSolver(object):
@@ -9,7 +9,7 @@ class FEMSolver(object):
         self.number_of_increments = number_of_increments
 
 #=============================================================================#
-    def __checkdata__(self, mesh, boundary_condition):
+    def __checkdata__(self, mesh, material, boundary_condition):
 
         if boundary_condition.initial_field is None and self.analysis_type == "transient":
             raise ValueError("The problem is TRANSIENT but there are not initial conditions.")
@@ -17,9 +17,9 @@ class FEMSolver(object):
         return
 
 #=============================================================================#
-    def Solve(self, mesh, boundary_condition, u, k, q, h, rhoc, A, T_inf):
+    def Solve(self, formulation, mesh, material, boundary_condition, u, q, h, T_inf):
 
-        self.__checkdata__(mesh, boundary_condition)
+        self.__checkdata__(mesh, material, boundary_condition)
 
         # solve temperature problem
         function_space = FunctionSpace(mesh.ndim)
@@ -35,9 +35,9 @@ class FEMSolver(object):
 
         # Assemble Convective-Diffusion matrix and Source
         if self.analysis_type == "steady":
-            K, Source, _ = Assembly(mesh, function_space, u, k, q, h, rhoc, A, T_inf)
+            K, Source, _ = Assembly(mesh, material, formulation, function_space, u, q, h, T_inf)
         else:
-            K, Source, M = Assembly(mesh, function_space, u, k, q, h, rhoc, A, T_inf)
+            K, Source, M = Assembly(mesh, material, formulation, function_space, u, q, h, T_inf)
 
         if self.analysis_type != "steady":
             #verify time step-size
@@ -46,12 +46,12 @@ class FEMSolver(object):
                 # capture element coordinates
                 ElemCoords = mesh.points[mesh.elements[elem]]
                 ElemLength = np.linalg.norm(ElemCoords[1,:] - ElemCoords[0,:])
-                delta_t[elem] = rhoc*ElemLength**2/(2.0*k)
+                delta_t[elem] = material.rhoc*ElemLength**2/(2.0*material.k)
             TimeIncrement = 0.25*np.min(delta_t)
             print("Time Increment={0:>10.5g}.".format(TimeIncrement))
             TotalSol = self.TransientSolver(K, M, NeumannFlux, Residual, TotalSol, 
-                    mesh, boundary_condition, TimeIncrement, 
-                    function_space, u, k, q, h, A, T_inf)
+                    mesh, material, formulation, boundary_condition, TimeIncrement, 
+                    function_space, u, q, h, T_inf)
         else:
             TotalSol = self.SteadySolver(K, NeumannFlux, Residual, TotalSol, 
                     mesh, boundary_condition)
@@ -60,8 +60,8 @@ class FEMSolver(object):
 
 #=============================================================================#
     def TransientSolver(self, K, M, NeumannFlux, Residual, TotalSol, 
-        mesh, boundary_condition, TimeStep, function_space,
-        u, k, q, h, A, T_inf):
+        mesh, material, formulation, boundary_condition, TimeStep,
+        function_space, u, q, h, T_inf):
         # dT/dt + U*dT/dx - d/dx(k*dT/dx) + q = 0
 
         TimeIncrements = self.number_of_increments
@@ -69,7 +69,7 @@ class FEMSolver(object):
         nelem = mesh.nelem
 
         invM = np.linalg.inv(M)
-        K_u,Source_u = AssemblyU(mesh, function_space, u, k, q, h, A, T_inf)
+        K_u,Source_u = AssemblyCharacteristicGalerkin(mesh, material, formulation, function_space, u, q, h, T_inf)
 
         # apply boundary condition
         applied_dirichlet = boundary_condition.applied_dirichlet

@@ -7,14 +7,14 @@ sys.path.append("/media/jdlaubrie/c57cebce-8099-4a2e-9731-0bf5f6e163a5/Kiltro/")
 from kiltro import *
 
 # properties and conditions
-k = 10.0 #W/(m*K)
+#k = 10.0 #W/(m*K)
 h = 0.0 #W/(m2*K)
 Per = 0.0 #m
-A = 1.0 #m2
+#A = 1.0 #m2
 q = 0.0 #W/m3
 T_inf = 0.0 #°C
-u = 0.0 #m/s
-rhoc = 10.0e6
+u = np.array([0.0]) #m/s
+#rhoc = 10.0e6
 
 #=============================================================================#
 def Output(points, sol):
@@ -39,6 +39,13 @@ def Output(points, sol):
 # mesh
 mesh = Mesh()
 mesh.Line(0.0,0.02,5)
+ndim = mesh.ndim
+
+# establish material for the problem
+material = FourierConduction(ndim, k=10.0, area=1.0, rhoc=10.0e6)
+
+# establish problem formulation
+formulation = HeatTransfer(mesh)
 
 # Initial boundary conditions
 initial_field = np.zeros((mesh.nnodes), dtype=np.float64)
@@ -58,7 +65,7 @@ boundary_condition.neumann_flags = neumann_flags
 # solve the thermal problem
 fem_solver = FEMSolver(analysis_type="transient",
                        number_of_increments=61)
-TotalSol = fem_solver.Solve(mesh, boundary_condition, u, k, q, h*Per, rhoc, A, T_inf)
+TotalSol = fem_solver.Solve(formulation, mesh, material, boundary_condition, u, q, h*Per, T_inf)
 
 # make an output for the data
 Output(mesh.points, TotalSol)

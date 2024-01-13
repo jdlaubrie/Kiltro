@@ -6,13 +6,13 @@ sys.path.append("/media/jdlaubrie/c57cebce-8099-4a2e-9731-0bf5f6e163a5/Kiltro/")
 from kiltro import *
 
 # properties and conditions
-k = 1.0e3 #W/(m*K)
+#k = 1.0e3 #W/(m*K)
 h = 0.0 #W/(m2*K)
 q = 0.0 #W/m3
 T_inf = 0.0 #°C
 u = np.array([0.0, 0.0]) #m/s
-rhoc = 0.0
-A = 1.0
+#rhoc = 0.0
+#A = 1.0
 
 #=============================================================================#
 def Output(points, sol, nx, ny):
@@ -42,6 +42,13 @@ y_elems = 3
 mesh = Mesh()
 mesh.Rectangle(lower_left_point=(0,0),upper_right_point=(0.5,0.01),
         nx=x_elems, ny=y_elems)
+ndim = mesh.ndim
+
+# establish material for the problem
+material = FourierConduction(ndim, k=1.0e3, area=1.0, rhoc=0.0)
+
+# establish problem formulation
+formulation = HeatTransfer(mesh)
 
 # Dirichlet boundary conditions
 left_border = np.where(mesh.points[:,0]==0.0)[0]
@@ -58,7 +65,7 @@ boundary_condition.neumann_flags = neumann_flags
 
 # solve the thermal problem
 fem_solver = FEMSolver(analysis_type="steady")
-TotalSol = fem_solver.Solve(mesh, boundary_condition, u, k, q, h, rhoc, A, T_inf)
+TotalSol = fem_solver.Solve(formulation, mesh, material, boundary_condition, u, q, h, T_inf)
 
 # solve temperature problem
 print(TotalSol.reshape(y_elems+1,x_elems+1))
