@@ -1,5 +1,5 @@
 import numpy as np
-from src import FunctionSpace, Assembly, AssemblyU
+from kiltro import FunctionSpace, Assembly, AssemblyU
 #from src import BoundaryCondition
 
 class FEMSolver(object):
@@ -9,18 +9,29 @@ class FEMSolver(object):
         self.number_of_increments = number_of_increments
 
 #=============================================================================#
+    def __checkdata__(self, mesh, boundary_condition):
+
+        if boundary_condition.initial_field is None and self.analysis_type == "transient":
+            raise ValueError("The problem is TRANSIENT but there are not initial conditions.")
+
+        return
+
+#=============================================================================#
     def Solve(self, mesh, boundary_condition, u, k, q, h, rhoc, A, T_inf):
 
+        self.__checkdata__(mesh, boundary_condition)
+
         # solve temperature problem
-        function_space = FunctionSpace()
+        function_space = FunctionSpace(mesh.ndim)
         Residual = np.zeros((mesh.nnodes,1), dtype=np.float64)
         TotalSol = np.zeros((mesh.nnodes,self.number_of_increments))
         # apply dirichlet boundary conditions
         boundary_condition.GetDirichletBoundaryConditions(mesh.nnodes)
         # find pure neumann nodel forces
         NeumannFlux = boundary_condition.ComputeNeumannFlux(mesh.nnodes)
-        # initial conditions
-        TotalSol[:,0] = 200.0
+        # initial conditions for transient problems
+        if self.analysis_type == "transient":
+            TotalSol[:,0] = boundary_condition.initial_field
 
         # Assemble Convective-Diffusion matrix and Source
         if self.analysis_type == "steady":
@@ -34,7 +45,7 @@ class FEMSolver(object):
             for elem in range(mesh.nelem):
                 # capture element coordinates
                 ElemCoords = mesh.points[mesh.elements[elem]]
-                ElemLength = np.abs(ElemCoords[1] - ElemCoords[0])
+                ElemLength = np.linalg.norm(ElemCoords[1,:] - ElemCoords[0,:])
                 delta_t[elem] = rhoc*ElemLength**2/(2.0*k)
             TimeIncrement = 0.25*np.min(delta_t)
             print("Time Increment={0:>10.5g}.".format(TimeIncrement))

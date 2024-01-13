@@ -3,6 +3,7 @@ import numpy as np
 class BoundaryCondition(object):
 
     def __init__(self,):
+        self.initial_field = None
         self.columns_in = None
         self.columns_out = None
         self.applied_dirichlet = None

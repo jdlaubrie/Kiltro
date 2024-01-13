@@ -1,6 +1,5 @@
 # python3
 import numpy as np
-import matplotlib.pyplot as plt
 import sys
 sys.path.append("/media/jdlaubrie/c57cebce-8099-4a2e-9731-0bf5f6e163a5/Kiltro/")
 #sys.path.append(os.path.expanduser("~"))
@@ -9,46 +8,53 @@ from kiltro import *
 # properties and conditions
 k = 10.0 #W/(m*K)
 h = 0.0 #W/(m2*K)
-Per = 0.0 #m
-A = 1.0 #m2
 q = 0.0 #W/m3
 T_inf = 0.0 #°C
-u = 0.0 #m/s
+u = np.array([0.0, 0.0]) #m/s
 rhoc = 10.0e6
+A = 1.0
 
 #=============================================================================#
-def Output(points, sol):
+def Output(points, sol, nx, ny):
 
-    npoints = points.shape[0]
+    import matplotlib.pyplot as plt
+    X = np.reshape(points[:,0], (ny+1,nx+1))
+    Y = np.reshape(points[:,1], (ny+1,nx+1))
 
-    fig,ax = plt.subplots()
+    fig,ax = plt.subplots(2,1)
 
-    if len(sol.shape)==1:
-        ax.plot(points,sol, 'P-')
-    else:
-        for i in range(sol.shape[1]):
-            ax.plot(points,sol[:,i])
+    for i in range(sol.shape[1]):
+        Temp = np.reshape(sol[:,i], (ny+1,nx+1))
+        ax[0].plot(X[1,:], Temp[1,:])
+
+    cs = ax[1].contourf(X, Y, Temp, cmap='RdBu_r')
+    cbar = fig.colorbar(cs)
 
     fig.tight_layout()
     plt.show
-    FIGURENAME = 'transient_1d.pdf'
+    FIGURENAME = 'transient_2d.pdf'
     plt.savefig(FIGURENAME)
     plt.close('all')
 
 #=============================================================================#
 # mesh
+x_elems = 5
+y_elems = 3
 mesh = Mesh()
-mesh.Line(0.0,0.02,5)
+mesh.Rectangle(lower_left_point=(0,0),upper_right_point=(0.02,1.0),
+        nx=x_elems, ny=y_elems)
 
+left_border = np.where(mesh.points[:,0]==0.0)[0]
+right_border = np.where(mesh.points[:,0]==0.02)[0]
 # Initial boundary conditions
 initial_field = np.zeros((mesh.nnodes), dtype=np.float64)
 initial_field[:] = 200.0
 # Dirichlet boundary conditions
 dirichlet_flags = np.zeros((mesh.nnodes), dtype=np.float64) + np.NAN
-dirichlet_flags[-1] = 0.0
+dirichlet_flags[right_border] = 0.0
 # Neumann boundary conditions
 neumann_flags = np.zeros((mesh.nnodes), dtype=np.float64) + np.NAN
-neumann_flags[0] = 0.0
+neumann_flags[left_border] = 0.0
 
 boundary_condition = BoundaryCondition()
 boundary_condition.initial_field = initial_field
@@ -58,8 +64,8 @@ boundary_condition.neumann_flags = neumann_flags
 # solve the thermal problem
 fem_solver = FEMSolver(analysis_type="transient",
                        number_of_increments=61)
-TotalSol = fem_solver.Solve(mesh, boundary_condition, u, k, q, h*Per, rhoc, A, T_inf)
+TotalSol = fem_solver.Solve(mesh, boundary_condition, u, k, q, h, rhoc, A, T_inf)
 
 # make an output for the data
-Output(mesh.points, TotalSol)
+Output(mesh.points, TotalSol, x_elems, y_elems)
 
