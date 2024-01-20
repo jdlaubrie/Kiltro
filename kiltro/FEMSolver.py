@@ -17,7 +17,7 @@ class FEMSolver(object):
         return
 
 #=============================================================================#
-    def Solve(self, formulation, mesh, material, boundary_condition, u, q, h, T_inf):
+    def Solve(self, formulation, mesh, material, boundary_condition, u):
 
         self.__checkdata__(mesh, material, boundary_condition)
 
@@ -25,6 +25,7 @@ class FEMSolver(object):
         function_space = FunctionSpace(mesh.ndim)
         Residual = np.zeros((mesh.nnodes,1), dtype=np.float64)
         TotalSol = np.zeros((mesh.nnodes,self.number_of_increments))
+
         # apply dirichlet boundary conditions
         boundary_condition.GetDirichletBoundaryConditions(mesh.nnodes)
         # find pure neumann nodel forces
@@ -35,9 +36,9 @@ class FEMSolver(object):
 
         # Assemble Convective-Diffusion matrix and Source
         if self.analysis_type == "steady":
-            K, Source, _ = Assembly(mesh, material, formulation, function_space, u, q, h, T_inf)
+            K, Source, _ = Assembly(mesh, material, formulation, function_space, boundary_condition, u)
         else:
-            K, Source, M = Assembly(mesh, material, formulation, function_space, u, q, h, T_inf)
+            K, Source, M = Assembly(mesh, material, formulation, function_space, boundary_condition, u)
 
         if self.analysis_type != "steady":
             #verify time step-size
@@ -51,7 +52,7 @@ class FEMSolver(object):
             print("Time Increment={0:>10.5g}.".format(TimeIncrement))
             TotalSol = self.TransientSolver(K, M, NeumannFlux, Residual, TotalSol, 
                     mesh, material, formulation, boundary_condition, TimeIncrement, 
-                    function_space, u, q, h, T_inf)
+                    function_space, u)
         else:
             TotalSol = self.SteadySolver(K, NeumannFlux, Residual, TotalSol, 
                     mesh, boundary_condition)
@@ -61,7 +62,7 @@ class FEMSolver(object):
 #=============================================================================#
     def TransientSolver(self, K, M, NeumannFlux, Residual, TotalSol, 
         mesh, material, formulation, boundary_condition, TimeStep,
-        function_space, u, q, h, T_inf):
+        function_space, u):
         # dT/dt + U*dT/dx - d/dx(k*dT/dx) + q = 0
 
         TimeIncrements = self.number_of_increments
@@ -69,7 +70,7 @@ class FEMSolver(object):
         nelem = mesh.nelem
 
         invM = np.linalg.inv(M)
-        K_u,Source_u = AssemblyCharacteristicGalerkin(mesh, material, formulation, function_space, u, q, h, T_inf)
+        K_u,Source_u = AssemblyCharacteristicGalerkin(mesh, material, formulation, function_space, boundary_condition, u)
 
         # apply boundary condition
         applied_dirichlet = boundary_condition.applied_dirichlet
@@ -86,9 +87,13 @@ class FEMSolver(object):
             # time-integration with chracteristic-Galerkin
             K_b,F_b,invM_b = boundary_condition.GetReducedMatrices(K, Residual, invM)
             dTdt = np.dot(K_b,TotalSol[boundary_condition.columns_in,Increment]) + F_b
+
+            Ku_b,Fu_b,_ = boundary_condition.GetReducedMatrices(K_u, Source_u)
+            dTdt2 = np.dot(Ku_b,TotalSol[boundary_condition.columns_in,Increment]) + Fu_b
+
             TotalSol[boundary_condition.columns_in,Increment+1] += \
                     TotalSol[boundary_condition.columns_in,Increment] - \
-                    TimeStep*np.dot(invM_b,dTdt)
+                    TimeStep*np.dot(invM_b,dTdt) + 0.5*TimeStep*TimeStep*np.dot(invM_b,dTdt2)
             TotalTime += TimeStep
 
         print(TotalTime)

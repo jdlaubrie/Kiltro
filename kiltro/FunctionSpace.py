@@ -13,6 +13,7 @@ class FunctionSpace(object):
         self.gBases = gBases
         self.AllGauss = w
 
+#=============================================================================#
     # define the function space for quadrature and iterpolation
     def Lagrange(self, eta):
         # simple linear function. maybe Legrange
@@ -20,6 +21,7 @@ class FunctionSpace(object):
         dN = np.array([-0.5, 0.5])
         return N, dN
 
+#=============================================================================#
     def GetBases1D(self,):
         ns = 2
         #ngauss = 2

@@ -24,3 +24,24 @@ class FourierConduction(Material):
         if not 'k' in self.__dict__.keys():
             raise ValueError("Thermal conductivity not defined.")
 
+        if not 'q' in self.__dict__.keys():
+            self.q = 0.0
+
+    def HeatDiffusion(self, XGradientN, elem=0, gcounter=0):
+        A = self.area
+        k = self.k
+        Gradient = XGradientN[gcounter]
+        # compute diffusion matrix (ndim*nepoin,ndim*nepoin->nepoin*nepoin)
+        diffusion = A*k*np.einsum('ij,ik->jk',Gradient,Gradient)
+        return diffusion
+
+    def HeatGeneration(self, Weight, elem=0, gcounter=0):
+        A = self.area
+        q = self.q
+        Weight0 = Weight[gcounter]
+        # compute generation vector (nepoin->nepoin)
+        generation = q*A*Weight0
+        return generation
+
+
+

@@ -7,14 +7,7 @@ sys.path.append("/media/jdlaubrie/c57cebce-8099-4a2e-9731-0bf5f6e163a5/Kiltro/")
 from kiltro import *
 
 # properties and conditions
-#k = 1.0e3 #W/(m*K)
-h = 0.0 #W/(m2*K)
-Per = 0.0 #m
-#A = 10.0e-3 #m2
-q = 0.0 #W/m3
-T_inf = 0.0 #°C
 u = np.array([0.0]) #m/s
-#rhoc = 0.0
 
 #=============================================================================#
 def Output(points, sol):
@@ -42,25 +35,25 @@ mesh.Line(0.0,0.5,5)
 ndim = mesh.ndim
 
 # establish material for the problem
-material = FourierConduction(ndim, k=1.0e3, area=10.0e3, rhoc=0.0)
+material = FourierConduction(ndim, k=1.0e3, area=10.0e3, rhoc=0.0, q=0.0)
 
 # establish problem formulation
 formulation = HeatTransfer(mesh)
 
 # Dirichlet boundary conditions
-dirichlet_flags = np.zeros((mesh.nnodes), dtype=np.float64) + np.NAN
-dirichlet_flags[0] = 100.0
-dirichlet_flags[-1] = 500.0
-# Neumann boundary conditions
-neumann_flags = np.zeros((mesh.nnodes), dtype=np.float64) + np.NAN
+def DirichletFunction(mesh):
+    boundary_data = np.zeros((mesh.nnodes), dtype=np.float64) + np.NAN
+    boundary_data[0] = 100.0
+    boundary_data[-1] = 500.0
+    return boundary_data
 
+# Set boundary conditions in the problem
 boundary_condition = BoundaryCondition()
-boundary_condition.dirichlet_flags = dirichlet_flags
-boundary_condition.neumann_flags = neumann_flags
+boundary_condition.SetDirichletCriteria(DirichletFunction,mesh)
 
 # solve the thermal problem
 fem_solver = FEMSolver(analysis_type="steady")
-TotalSol = fem_solver.Solve(formulation, mesh, material, boundary_condition, u, q, h*Per, T_inf)
+TotalSol = fem_solver.Solve(formulation, mesh, material, boundary_condition, u)
 
 # make an output for the data
 Output(mesh.points, TotalSol)

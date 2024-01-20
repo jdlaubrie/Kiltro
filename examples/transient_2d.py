@@ -54,24 +54,32 @@ formulation = HeatTransfer(mesh)
 left_border = np.where(mesh.points[:,0]==0.0)[0]
 right_border = np.where(mesh.points[:,0]==0.02)[0]
 # Initial boundary conditions
-initial_field = np.zeros((mesh.nnodes), dtype=np.float64)
-initial_field[:] = 200.0
+def InitialFunction(mesh):
+    boundary_data = np.zeros((mesh.nnodes), dtype=np.float64)
+    boundary_data[:] = 200.0
+    return boundary_data
+
 # Dirichlet boundary conditions
-dirichlet_flags = np.zeros((mesh.nnodes), dtype=np.float64) + np.NAN
-dirichlet_flags[right_border] = 0.0
+def DirichletFunction(mesh,right_border):
+    boundary_data = np.zeros((mesh.nnodes), dtype=np.float64) + np.NAN
+    boundary_data[right_border] = 0.0
+    return boundary_data
+
 # Neumann boundary conditions
-neumann_flags = np.zeros((mesh.nnodes), dtype=np.float64) + np.NAN
-neumann_flags[left_border] = 0.0
+def NeumannFunction(mesh,left_border):
+    boundary_data = np.zeros((mesh.nnodes), dtype=np.float64) + np.NAN
+    boundary_data[left_border] = 0.0
+    return boundary_data
 
 boundary_condition = BoundaryCondition()
-boundary_condition.initial_field = initial_field
-boundary_condition.dirichlet_flags = dirichlet_flags
-boundary_condition.neumann_flags = neumann_flags
+boundary_condition.SetInitialConditions(InitialFunction,mesh)
+boundary_condition.SetDirichletCriteria(DirichletFunction,mesh,right_border)
+boundary_condition.SetNeumannCriteria(NeumannFunction,mesh,left_border)
 
 # solve the thermal problem
 fem_solver = FEMSolver(analysis_type="transient",
                        number_of_increments=61)
-TotalSol = fem_solver.Solve(formulation, mesh, material, boundary_condition, u, q, h, T_inf)
+TotalSol = fem_solver.Solve(formulation, mesh, material, boundary_condition, u)
 
 # make an output for the data
 Output(mesh.points, TotalSol, x_elems, y_elems)
