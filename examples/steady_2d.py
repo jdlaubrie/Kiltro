@@ -1,7 +1,7 @@
 # python3
 import numpy as np
 import sys
-sys.path.append("/media/jdlaubrie/c57cebce-8099-4a2e-9731-0bf5f6e163a5/Kiltro/")
+sys.path.append("/home/jdlaubrie/Coding/Kiltro/")
 #sys.path.append(os.path.expanduser("~"))
 from kiltro import *
 
@@ -9,7 +9,7 @@ from kiltro import *
 u = np.array([0.0, 0.0]) #m/s
 
 #=============================================================================#
-def Output(points, sol, nx, ny):
+def Output(points, sol, formula, nx, ny):
 
     import matplotlib.pyplot as plt
     X = np.reshape(points[:,0], (ny+1,nx+1))
@@ -25,7 +25,7 @@ def Output(points, sol, nx, ny):
 
     fig.tight_layout()
     plt.show
-    FIGURENAME = 'steady_2d.pdf'
+    FIGURENAME = 'steady_2d_'+formula+'.pdf'
     plt.savefig(FIGURENAME)
     plt.close('all')
 
@@ -39,31 +39,52 @@ mesh.Rectangle(lower_left_point=(0,0),upper_right_point=(0.5,0.01),
 ndim = mesh.ndim
 
 # establish material for the problem
-material = FourierConduction(ndim, k=1.0e3, area=1.0, rhoc=0.0, q=0.0)
-
-# establish problem formulation
-formulation = HeatTransfer(mesh)
+material = FourierConduction(ndim, k=1.0e3, area=1.0, density=1.0, c_v=1.0, q=0.0)
 
 # Dirichlet boundary conditions
 left_border = np.where(mesh.points[:,0]==0.0)[0]
 right_border = np.where(mesh.points[:,0]==0.5)[0]
 def DirichletFunction(mesh,left_border,right_border):
-    boundary_data = np.zeros((mesh.nnodes), dtype=np.float64) + np.NAN
-    boundary_data[left_border] = 100.0
-    boundary_data[right_border] = 500.0
+    boundary_data = np.zeros((mesh.nnodes,1), dtype=np.float64) + np.NAN
+    boundary_data[left_border,0] = 100.0
+    boundary_data[right_border,0] = 500.0
     return boundary_data
 
 # Set boundary conditions in problem
 boundary_condition = BoundaryCondition()
 boundary_condition.SetDirichletCriteria(DirichletFunction,mesh,left_border,right_border)
 
+#-----------------------------------------------------------------------------#
+print('\n======================  PURE-DIFFUSION PROBLEM  ======================')
+# establish problem formulation
+formulation = HeatDiffusion(mesh)
+
 # solve the thermal problem
 fem_solver = FEMSolver(analysis_type="steady")
-TotalSol = fem_solver.Solve(formulation, mesh, material, boundary_condition, u)
+TotalSol = fem_solver.Solve(formulation=formulation, mesh=mesh, material=material,
+                            boundary_condition=boundary_condition)
 
 # solve temperature problem
 print(TotalSol.reshape(y_elems+1,x_elems+1))
 
 # make an output for the data
-Output(mesh.points, TotalSol, x_elems, y_elems)
+Output(mesh.points, TotalSol, 'diff', x_elems, y_elems)
+
+#-----------------------------------------------------------------------------#
+print('\n===================  ADVECTION-DIFFUSION PROBLEM  ===================')
+u = np.zeros((mesh.nnodes,2), dtype=np.float64)
+u[:,0] += 9.0e3
+# establish problem formulation
+formulation = HeatAdvectionDiffusion(mesh, velocity=u)
+
+# solve the thermal problem
+fem_solver = FEMSolver(analysis_type="steady")
+TotalSol = fem_solver.Solve(formulation=formulation, mesh=mesh, material=material,
+                            boundary_condition=boundary_condition)
+
+# solve temperature problem
+print(TotalSol.reshape(y_elems+1,x_elems+1))
+
+# make an output for the data
+Output(mesh.points, TotalSol, 'addi', x_elems, y_elems)
 

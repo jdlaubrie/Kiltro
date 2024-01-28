@@ -2,7 +2,9 @@ import numpy as np
 
 class FunctionSpace(object):
 
-    def __init__(self, ndim):
+    def __init__(self, mesh):
+
+        ndim = mesh.ndim
 
         if ndim == 1:
             Bases, gBases, w = self.GetBases1D()
