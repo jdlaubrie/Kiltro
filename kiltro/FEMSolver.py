@@ -113,7 +113,7 @@ class FEMSolver(object):
                 ElemCoords = mesh.points[mesh.elements[elem]]
                 ElemLength = np.linalg.norm(ElemCoords[1,:] - ElemCoords[0,:])
                 delta_t[elem] = material.rho*material.c_v*ElemLength**2/(2.0*material.k)
-            TimeIncrement = 0.25*np.min(delta_t)
+            TimeIncrement = 0.1*np.min(delta_t)
             print("Time Increment={0:>10.5g}.".format(TimeIncrement))
             TotalSol = self.TransientSolver(function_spaces, formulation, solver,
                     K, M, NeumannFluxes, NodalFluxes, mesh, TotalSol, material,
@@ -137,8 +137,8 @@ class FEMSolver(object):
         invM = np.linalg.inv(M)
 
         # ASSEMBLE CONVECTION AND FLUX MATRICES FOR CHARACTERISTIC-GALERKIN
-        if formulation.fields == "advection_diffusion":
-            K_u,Flux_u = AssembleCharacteristicGalerkin(function_spaces, formulation, mesh, material, boundary_condition)
+        #if formulation.fields == "advection_diffusion":
+        #    K_u,Flux_u = AssembleCharacteristicGalerkin(function_spaces, formulation, mesh, material, boundary_condition)
 
         # apply boundary condition
         applied_dirichlet = boundary_condition.applied_dirichlet
@@ -160,11 +160,11 @@ class FEMSolver(object):
                     TimeStep*np.dot(invM_b,dTdt)
 
             # time-integration including characteristic-Galerkin
-            if formulation.fields == "advection_diffusion":
-                Ku_b,Fu_b,_ = boundary_condition.GetReducedMatrices(K_u, Flux_u)
-                dTdt2 = np.dot(Ku_b,TotalSol[boundary_condition.columns_in,0,Increment]) + Fu_b
+            #if formulation.fields == "advection_diffusion":
+            #    Ku_b,Fu_b,_ = boundary_condition.GetReducedMatrices(K_u, Flux_u)
+            #    dTdt2 = np.dot(Ku_b,TotalSol[boundary_condition.columns_in,0,Increment]) + Fu_b
 
-                TotalSol[boundary_condition.columns_in,0,Increment+1] += 0.5*TimeStep*TimeStep*np.dot(invM_b,dTdt2)
+            #    TotalSol[boundary_condition.columns_in,0,Increment+1] += 0.5*TimeStep*TimeStep*np.dot(invM_b,dTdt2)
 
             TotalTime += TimeStep
 

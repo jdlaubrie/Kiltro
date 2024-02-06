@@ -64,7 +64,7 @@ formulation = HeatDiffusion(mesh)
 
 # solve the thermal problem
 fem_solver = FEMSolver(analysis_type="transient",
-                       number_of_increments=61)
+                       number_of_increments=151)
 TotalSol = fem_solver.Solve(formulation=formulation, mesh=mesh, material=material,
                             boundary_condition=boundary_condition)
 
@@ -73,13 +73,13 @@ Output(mesh.points, TotalSol, 'diff')
 
 #-----------------------------------------------------------------------------#
 print('\n===================  ADVECTION-DIFFUSION PROBLEM  ===================')
-u = np.zeros((mesh.nnodes,1), dtype=np.float64) + 0.0
+u = np.zeros((mesh.nnodes,1), dtype=np.float64) - 1.0e-4
 # establish problem formulation
 formulation = HeatAdvectionDiffusion(mesh, velocity=u)
 
 # solve the thermal problem
 fem_solver = FEMSolver(analysis_type="transient",
-                       number_of_increments=61)
+                       number_of_increments=151)
 TotalSol = fem_solver.Solve(formulation=formulation, mesh=mesh, material=material,
                             boundary_condition=boundary_condition)
 
