@@ -2,11 +2,13 @@ import numpy as np
 
 class Mesh(object):
 
-    def __init__(self,):
+    def __init__(self, element_type=None):
         self.points = None
         self.elements = None
         self.nnodes = None
         self.nelem = None
+
+        self.element_type = element_type
 
 #=============================================================================#
     def Line(self, left_point=0.0, right_point=1.0, n=10):
@@ -54,4 +56,38 @@ class Mesh(object):
         self.nnodes = points.shape[0]
         self.nelem = elements.shape[0]
         self.ndim = 2
+
+#=============================================================================#
+    def InferSpatialDimension(self):
+        """Infer the spatial dimension of the mesh"""
+
+        assert self.points is not None
+        # if self.points.shape[1] == 3:
+        #     if self.element_type == "tri" or self.element_type == "quad":
+        #         print("3D surface mesh of ", self.element_type)
+
+        return self.points.shape[1]
+
+#=============================================================================#
+    def InferNumberOfNodesPerElement(self, p=None, element_type=None):
+        """Infers number of nodes per element. If p and element_type are
+            not None then returns the number of nodes required for the given
+            element type with the given polynomial degree"""
+
+        if p is not None and element_type is not None:
+            if element_type=="line":
+                return int(p+1)
+            elif element_type=="tri":
+                return int((p+1)*(p+2)/2)
+            elif element_type=="quad":
+                return int((p+1)**2)
+            elif element_type=="tet":
+                return int((p+1)*(p+2)*(p+3)/6)
+            elif element_type=="hex":
+                return int((p+1)**3)
+            else:
+                raise ValueError("Did not understand element type")
+
+        assert self.elements.shape[0] is not None
+        return self.elements.shape[1]
 

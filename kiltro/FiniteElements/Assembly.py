@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.sparse import coo_matrix, csc_matrix, csr_matrix
+from .ComputeSparsityPattern import ComputeSparsityPattern
 
 __all__ = ['Assemble', 'AssembleCharacteristicGalerkin'] #, 'AssembleForces', 'AssembleExplicit', 'AssembleMass', 'AssembleForm', 'AssembleFollowerForces']
 
@@ -14,41 +16,80 @@ def Assemble(fem_solver, function_spaces, formulation, mesh, material, boundary_
     npoints = mesh.nnodes
 
     # SPARSE INDICES
-#    indices, indptr = fem_solver.indices, fem_solver.indptr
-#    data_global_indices = fem_solver.data_global_indices
-#    data_local_indices = fem_solver.data_local_indices
+    if fem_solver.recompute_sparsity_pattern is False:
+        indices, indptr = fem_solver.indices, fem_solver.indptr
+        if fem_solver.squeeze_sparsity_pattern is False:
+            data_global_indices = fem_solver.data_global_indices
+            data_local_indices = fem_solver.data_local_indices
 
-#    V_convection=np.zeros(indices.shape[0],dtype=np.float64)
-#    if fem_solver.analysis_type !='steady':
-#        V_mass=np.zeros(indices.shape[0],dtype=np.float64)
+    if fem_solver.recompute_sparsity_pattern:
+        # ALLOCATE VECTORS FOR SPARSE ASSEMBLY OF CONVECTION MATRIX - CHANGE TYPES TO INT64 FOR DoF > 1e09
+        I_convection=np.zeros(int((nvar*nodeperelem)**2*nelem),dtype=np.int32)
+        J_convection=np.zeros(int((nvar*nodeperelem)**2*nelem),dtype=np.int32)
+        V_convection=np.zeros(int((nvar*nodeperelem)**2*nelem),dtype=np.float64)
 
-    M = np.zeros((npoints*nvar,npoints*nvar), dtype=np.float64)
-    K = np.zeros((npoints*nvar,npoints*nvar), dtype=np.float64)
+        I_mass=[]; J_mass=[]; V_mass=[]
+        if fem_solver.analysis_type !='steady':
+            # ALLOCATE VECTORS FOR SPARSE ASSEMBLY OF MASS MATRIX - CHANGE TYPES TO INT64 FOR DoF > 1e09
+            I_mass=np.zeros(int((nvar*nodeperelem)**2*nelem),dtype=np.int32)
+            J_mass=np.zeros(int((nvar*nodeperelem)**2*nelem),dtype=np.int32)
+            V_mass=np.zeros(int((nvar*nodeperelem)**2*nelem),dtype=np.float64)
+    else:
+        V_convection=np.zeros(indices.shape[0],dtype=np.float64)
+        if fem_solver.analysis_type !='steady':
+            V_mass=np.zeros(indices.shape[0],dtype=np.float64)
+
     Flux = np.zeros((npoints*nvar,1), dtype=np.float64)
+
+    mass = []
+
     for elem in range(nelem):
 
-        massel, convel, f = formulation.GetElementalMatrices(elem, function_spaces[0],
-                        mesh, material, fem_solver)
+        # COMPUATE ALL LOCAL ELEMENTAL MATRICES (CONVECTION, MASS, INTERNAL TRACTION FORCES )
+        I_conve_elem, J_conve_elem, V_conve_elem, f, \
+        I_mass_elem, J_mass_elem, V_mass_elem = formulation.GetElementalMatrices(elem,
+            function_spaces[0], mesh, material, fem_solver)
 
-        # ASSEMBLY - DIFFUSION MATRIX
+        if fem_solver.recompute_sparsity_pattern:
+            raise ValueError("not implemented yet")
+        else:
+            if fem_solver.squeeze_sparsity_pattern:
+                raise ValueError("not implemented yet")
+            else:
+                # SPARSE ASSEMBLY - CONVECTION MATRIX
+                V_convection[data_global_indices[elem*local_capacity:(elem+1)*local_capacity]] \
+                += V_conve_elem[data_local_indices[elem*local_capacity:(elem+1)*local_capacity]]
+
+                if fem_solver.analysis_type != 'steady':
+                    # SPARSE ASSEMBLY - MASS MATRIX
+                    V_mass[data_global_indices[elem*local_capacity:(elem+1)*local_capacity]] \
+                    += V_mass_elem[data_local_indices[elem*local_capacity:(elem+1)*local_capacity]]
+
+        # INTERNAL FLUX ASSEMBLY
         for i in range(nodeperelem):
-            for j in range(nodeperelem):
-                K[mesh.elements[elem,i],mesh.elements[elem,j]] += convel[i,j]
+            F_idx = mesh.elements[elem,i]*nvar
+            for iterator in range(nvar):
+                Flux[F_idx+iterator] += f[i*nvar+iterator]
+        #RHSAssemblyNative(Flux,f,elem,nvar,nodeperelem,mesh.elements)
 
-        # ASSEMBLY - MASS MATRIX
-        if fem_solver.analysis_type != 'steady':
-            for i in range(nodeperelem):
-                for j in range(nodeperelem):
-                    M[mesh.elements[elem,i],mesh.elements[elem,j]] += massel[i,j]
+    if fem_solver.recompute_sparsity_pattern:
+        raise ValueError("not yet")
+    else:
+        convection = csr_matrix((V_convection,indices,indptr),
+            shape=((nvar*mesh.points.shape[0],nvar*mesh.points.shape[0])))
 
-        # ASSEMBLY - INTERNAL FLUX
-        for i in range(nodeperelem):
-            Flux[mesh.elements[elem,i]] += f[i]
+    # GET STORAGE/MEMORY DETAILS
+    fem_solver.spmat = convection.data.nbytes/1024./1024.
+    fem_solver.ijv = (indptr.nbytes + indices.nbytes + V_convection.nbytes)/1024./1024.
+
+    if fem_solver.analysis_type != 'steady':
+        mass = csr_matrix((V_mass,indices,indptr),
+            shape=((nvar*mesh.points.shape[0],nvar*mesh.points.shape[0])))
 
     # ASSEMBLY - EXTERNAL FLUX
-    AssemblyRobinForces(fem_solver, function_spaces[0], mesh, material, boundary_condition)
+    K_e, Flux_e = AssemblyRobinForces(fem_solver, function_spaces[0], mesh, material, boundary_condition)
 
-    return K, Flux, M
+    return convection, Flux, mass
 
 #=============================================================================#
 def AssembleCharacteristicGalerkin(function_spaces, formulation, mesh, material, boundary_condition):
@@ -132,4 +173,6 @@ def AssemblyRobinForces(fem_solver, function_space, mesh, material, boundary_con
             Flux[mesh.elements[elem,i]] += flux[i]
 
     return K, Flux
+
+#=============================================================================#
 

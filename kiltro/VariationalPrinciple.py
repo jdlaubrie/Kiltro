@@ -73,13 +73,20 @@ class VariationalPrinciple(object):
         return self.local_rows, self.local_columns, A.ravel()
 
 #=============================================================================#
-class HeatDiffusion(VariationalPrinciple):
+class Temperature(VariationalPrinciple):
 
-    def __init__(self, mesh, function_spaces=None):
-        super(HeatDiffusion, self).__init__(mesh, function_spaces=function_spaces)
+    def __init__(self, mesh, velocity=None, function_spaces=None):
+        super(Temperature, self).__init__(mesh, function_spaces=function_spaces)
 
-        self.fields = "diffusion"
+        self.fields = "thermal"
         self.nvar = 1
+
+        if velocity is None:
+            velocity = np.zeros((mesh.nnodes,self.ndim), dtype=np.float64)
+        else:
+            if not velocity.shape[1] == self.ndim:
+                raise ValueError("Dimension of velocity does not match with problem dimension")
+        self.velocity = velocity
 
         self.GetFunctionSpaces(mesh, function_spaces=function_spaces)
 
@@ -91,25 +98,31 @@ class HeatDiffusion(VariationalPrinciple):
         ElemCoords = mesh.points[mesh.elements[elem]]
 
         # COMPUTE THE CONVECTION MATRIX
-        convection, flux = self.GetLocalConvection(elem, function_space, mesh, material, ElemCoords)
+        convectionel, flux = self.GetLocalConvection(elem, function_space, mesh, material, ElemCoords)
 
         # COMPUTE THE MASS MATRIX
-        mass = []
+        massel = []
+        I_mass_elem = []; J_mass_elem = []; V_mass_elem = []
         if fem_solver.analysis_type != 'steady':
-            mass = self.GetLocalMass(elem, function_space, mesh, material, ElemCoords)
+            massel = self.GetLocalMass(elem, function_space, mesh, material, ElemCoords)
 
-#        I_conve_elem, J_conve_elem, V_conve_elem = self.FindIndices(convection)
-#        if fem_solver.analysis_type != 'steady':
-#            I_mass_elem, J_mass_elem, V_mass_elem = self.FindIndices(mass)
-#        print(I_conve_elem, J_conve_elem, V_conve_elem)
+        I_conve_elem, J_conve_elem, V_conve_elem = self.FindIndices(convectionel)
+        if fem_solver.analysis_type != 'steady':
+            I_mass_elem, J_mass_elem, V_mass_elem = self.FindIndices(massel)
 
-        return mass, convection, flux
+        return I_conve_elem, J_conve_elem, V_conve_elem, flux, I_mass_elem, J_mass_elem, V_mass_elem
+#        return massel, convectionel, flux
 
     #-------------------------------------------------------------------------#
     def GetLocalConvection(self, elem, function_space, mesh, material, ElemCoords):
 
         nvar = self.nvar
         ndim = self.ndim
+
+        ElemLength = np.linalg.norm(ElemCoords[1,:] - ElemCoords[0,:])
+        ElemVelocity = np.mean(self.velocity[mesh.elements[elem]], axis=0)
+        Peclet = np.linalg.norm(ElemVelocity)*ElemLength/(2.0*material.k)
+        print(" Peclet={0:>10.5g}.".format(Peclet))
 
         # invoke the function space
         Bases = function_space.Bases
@@ -135,10 +148,12 @@ class HeatDiffusion(VariationalPrinciple):
         for counter in range(dV.shape[0]):
             # compute diffusion matrix (ndim*nepoin)
             diffusion = material.area*material.k*SpatialGradient[counter]
+            # compute advection matrix (ndim,ndim*nepoin->nepoin)
+            advection = material.rho*material.c_v*np.dot(ElemVelocity,SpatialGradient[counter])
             # source flux due to heat generation
             flux_q = material.area*material.q*Bases[:,counter]
 
-            DB, q = self.ConstitutiveConvectionIntegrand(SpatialGradient[counter], diffusion.T, flux_q)
+            DB, q = self.ConstitutiveConvectionIntegrand(Bases[:,counter], SpatialGradient[counter], diffusion.T, advection, flux_q)
 
             convection += DB*dV[counter]
             flux += q*dV[counter]
@@ -146,23 +161,24 @@ class HeatDiffusion(VariationalPrinciple):
         return convection, flux
 
     #-------------------------------------------------------------------------#
-    def ConstitutiveConvectionIntegrand(self, SpatialGradient, diffusion, flux):
+    def ConstitutiveConvectionIntegrand(self, W, SpatialGradient, diffusion, advection, flux):
         """Applies to displacement based formulation"""
 
         B = SpatialGradient.copy()
 
         DB = np.dot(diffusion,B)
+        DB += np.dot(advection,W)
         q = flux[:,None]
 
         return DB, q
 
 #=============================================================================#
-class HeatAdvectionDiffusion(VariationalPrinciple):
+class TemperaturePG(VariationalPrinciple):
 
     def __init__(self, mesh, velocity=None, function_spaces=None):
-        super(HeatAdvectionDiffusion, self).__init__(mesh, function_spaces=function_spaces)
+        super(TemperaturePG, self).__init__(mesh, function_spaces=function_spaces)
 
-        self.fields = "advection_diffusion"
+        self.fields = "thermal"
         self.nvar = 1 
 
         if velocity is None:
@@ -178,23 +194,23 @@ class HeatAdvectionDiffusion(VariationalPrinciple):
     def GetElementalMatrices(self, elem, function_space, mesh, material,
         fem_solver):
 
-        mass = []
         # capture element coordinates
         ElemCoords = mesh.points[mesh.elements[elem]]
 
         # COMPUTE THE CONVECTION MATRIX
-        convection, flux = self.GetLocalConvection(elem, function_space, mesh, material, ElemCoords)
+        convectionel, flux = self.GetLocalConvection(elem, function_space, mesh, material, ElemCoords)
 
         # COMPUTE THE MASS MATRIX
+        massel = []
+        I_mass_elem = []; J_mass_elem = []; V_mass_elem = []
         if fem_solver.analysis_type != 'steady':
-            mass = self.GetLocalMass(elem, function_space, mesh, material, ElemCoords)
+            massel = self.GetLocalMass(elem, function_space, mesh, material, ElemCoords)
 
-#        I_conve_elem, J_conve_elem, V_conve_elem = self.FindIndices(convection)
-#        if fem_solver.analysis_type != 'steady':
-#            I_mass_elem, J_mass_elem, V_mass_elem = self.FindIndices(mass)
-#        print(I_conve_elem, J_conve_elem, V_conve_elem)
+        I_conve_elem, J_conve_elem, V_conve_elem = self.FindIndices(convectionel)
+        if fem_solver.analysis_type != 'steady':
+            I_mass_elem, J_mass_elem, V_mass_elem = self.FindIndices(massel)
 
-        return mass, convection, flux
+        return I_conve_elem, J_conve_elem, V_conve_elem, flux, I_mass_elem, J_mass_elem, V_mass_elem
 
     #-------------------------------------------------------------------------#
     def GetLocalConvection(self, elem, function_space, mesh, material, ElemCoords):
@@ -204,6 +220,8 @@ class HeatAdvectionDiffusion(VariationalPrinciple):
 
         ElemLength = np.linalg.norm(ElemCoords[1,:] - ElemCoords[0,:])
         ElemVelocity = np.mean(self.velocity[mesh.elements[elem]], axis=0)
+        Peclet = np.linalg.norm(ElemVelocity)*ElemLength/(2.0*material.k)
+        print(" Peclet={0:>10.5g}.".format(Peclet))
 
         # invoke the function space
         Bases = function_space.Bases
@@ -230,12 +248,12 @@ class HeatAdvectionDiffusion(VariationalPrinciple):
         for counter in range(dV.shape[0]):
             # compute diffusion matrix (ndim*nepoin)
             diffusion = material.area*material.k*SpatialGradient[counter]
-            # compute advection matrix (nepoin,ndim->nepoin*ndim)
-            advection = material.rho*material.c_v*np.outer(Weight[counter],ElemVelocity)
+            # compute advection matrix (ndim,ndim*nepoin->nepoin)
+            advection = material.rho*material.c_v*np.dot(ElemVelocity,SpatialGradient[counter])
             # source flux due to heat generation
             flux_q = material.area*material.q*Bases[:,counter]
 
-            DB, q = self.ConstitutiveConvectionIntegrand(SpatialGradient[counter], diffusion.T, advection, flux_q)
+            DB, q = self.ConstitutiveConvectionIntegrand(Weight[:,counter],SpatialGradient[counter], diffusion.T, advection, flux_q)
 
             convection += DB*dV[counter]
             flux += q*dV[counter]
@@ -307,19 +325,18 @@ class HeatAdvectionDiffusion(VariationalPrinciple):
             Weight = Bases
             gWeight = gBases
 
-        print(" Peclet={0:>10.5g}.".format(Peclet) +\
-              " alpha={0:>10.5g}".format(alpha))
+        print(" alpha={0:>10.5g}".format(alpha))
 
         return Weight, gWeight
 
     #-------------------------------------------------------------------------#
-    def ConstitutiveConvectionIntegrand(self, SpatialGradient, diffusion, advection, flux):
+    def ConstitutiveConvectionIntegrand(self, Weight, SpatialGradient, diffusion, advection, flux):
         """Applies to displacement based formulation"""
 
         B = SpatialGradient.copy()
 
         DB = np.dot(diffusion,B)
-        DB += np.dot(advection,B)
+        DB += np.dot(advection,Weight)
         q = flux[:,None]
 
         return DB, q

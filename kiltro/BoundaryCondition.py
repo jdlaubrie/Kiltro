@@ -5,6 +5,8 @@ class BoundaryCondition(object):
 
     def __init__(self,):
 
+        self.analysis_type = "steady"
+
         self.initial_field = None
         self.dirichlet_data_applied_at = 'node' # or 'faces'
         self.neumann_data_applied_at = 'node' # or 'faces'
@@ -164,14 +166,38 @@ class BoundaryCondition(object):
         return K_b, F_b, M_b
 
 #=============================================================================#
-    def ApplyDirichletGetReducedMatrices(self, K, F, AppliedDirichlet):
+    def ApplyDirichletGetReducedMatrices(self, K, F, AppliedDirichlet, LoadFactor=1., mass=None, only_residual=False):
+        """AppliedDirichlet is a non-member because it can be external incremental Dirichlet,
+            which is currently not implemented as member of BoundaryCondition. F also does not
+            correspond to Dirichlet forces, as it can be residual in incrementally linearised
+            framework.
+        """
 
-        # Apply dirichlet conditions in the problem
+        # # APPLY DIRICHLET BOUNDARY CONDITIONS
+        # for i in range(self.columns_out.shape[0]):
+            # F = F - LoadFactor*AppliedDirichlet[i]*stiffness.getcol(self.columns_out[i])
+
+        # MUCH FASTER APPROACH
+        # F = F - (stiffness[:,self.columns_out]*AppliedDirichlet*LoadFactor)[:,None]
         nnz_cols = ~np.isclose(AppliedDirichlet,0.0)
-        F[self.columns_in] = F[self.columns_in] + np.dot(K[self.columns_in,:]\
-            [:,self.columns_out[nnz_cols]],AppliedDirichlet[nnz_cols])[:,None]
+        F[self.columns_in] = F[self.columns_in] - (K[self.columns_in,:][:,
+            self.columns_out[nnz_cols]]*AppliedDirichlet[nnz_cols]*LoadFactor)[:,None]
 
-        return F
+        if only_residual:
+            return F
+
+        # GET REDUCED FORCE VECTOR
+        F_b = F[self.columns_in,0]
+
+        # GET REDUCED STIFFNESS
+        K_b = K[self.columns_in,:][:,self.columns_in]
+
+        # GET REDUCED MASS MATRIX
+        if self.analysis_type != 'steady':
+            mass_b = mass[self.columns_in,:][:,self.columns_in]
+            return K_b, F_b, F, mass_b
+
+        return K_b, F_b, F
 
 #=============================================================================#
     def UpdateFixDoFs(self, AppliedDirichletInc, fsize, nvar):
@@ -200,4 +226,18 @@ class BoundaryCondition(object):
         dphi = TotalSol.reshape(int(TotalSol.shape[0]/nvar),nvar)
 
         return dphi
+
+#=============================================================================#
+    def TotalComponentSol(self, sol, AppliedDirichletInc, Iter, fsize, nvar):
+
+        # GET TOTAL SOLUTION
+        TotalSol = np.zeros((fsize,1))
+        TotalSol[self.columns_in,0] = sol
+        TotalSol[self.columns_out,0] = AppliedDirichletInc
+
+        # RE-ORDER SOLUTION COMPONENTS
+        dphi = TotalSol.reshape(int(TotalSol.shape[0]/nvar),nvar)
+
+        return dphi
+
 

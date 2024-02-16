@@ -1,23 +1,24 @@
 # python3
 import numpy as np
 import matplotlib.pyplot as plt
-import sys
-sys.path.append("/home/jdlaubrie/Coding/Kiltro/")
+from warnings import warn
+import os, sys
+sys.path.append("/media/jdlaubrie/c57cebce-8099-4a2e-9731-0bf5f6e163a5/Kiltro/")
 #sys.path.append(os.path.expanduser("~"))
 from kiltro import *
 
 #=============================================================================#
-def Output(points, sol, formula):
+def Output(mesh, sol, formula):
 
-    npoints = points.shape[0]
+    npoints = mesh.points.shape[0]
 
     fig,ax = plt.subplots()
 
     if len(sol.shape)==1:
-        ax.plot(points,sol, 'P-')
+        ax.plot(mesh.points,sol, 'P-')
     else:
         for i in range(sol.shape[1]):
-            ax.plot(points,sol[:,i])
+            ax.plot(mesh.points,sol[:,i])
 
     fig.tight_layout()
     plt.show
@@ -25,9 +26,11 @@ def Output(points, sol, formula):
     plt.savefig(FIGURENAME)
     plt.close('all')
 
+    return
+
 #=============================================================================#
 # mesh
-mesh = Mesh()
+mesh = Mesh(element_type="line")
 mesh.Line(0.0,0.5,5)
 ndim = mesh.ndim
 
@@ -48,30 +51,36 @@ def DirichletFunction(mesh):
 boundary_condition = BoundaryCondition()
 boundary_condition.SetDirichletCriteria(DirichletFunction,mesh)
 
+u = np.zeros((mesh.nnodes,1), dtype=np.float64) + 4.0e7
 #-----------------------------------------------------------------------------#
-print('\n======================  PURE-DIFFUSION PROBLEM  ======================')
+print('\n==================  STANDARD-GALERKIN FORMULATION  ==================')
 # establish problem formulation
-formulation = HeatDiffusion(mesh)
+formulation = Temperature(mesh, velocity=u)
 
 # solve the thermal problem
 fem_solver = FEMSolver(analysis_type="steady")
-TotalSol = fem_solver.Solve(formulation=formulation, mesh=mesh, material=material,
+solution = fem_solver.Solve(formulation=formulation, mesh=mesh, material=material,
                             boundary_condition=boundary_condition)
 
+# export results to vtk file
+solution.WriteVTK('steady1d_diff')
+
 # make an output for the data
-Output(mesh.points, TotalSol, 'diff')
+Output(mesh, solution.sol, 'diff')
 
 #-----------------------------------------------------------------------------#
-print('\n===================  ADVECTION-DIFFUSION PROBLEM  ===================')
-u = np.zeros((mesh.nnodes,1), dtype=np.float64) + 8.0e7
+print('\n===================  PETROV-GELERKING FORMULATION  ==================')
 # establish problem formulation
-formulation = HeatAdvectionDiffusion(mesh, velocity=u)
+formulation = TemperaturePG(mesh, velocity=u)
 
 # solve the thermal problem
 fem_solver = FEMSolver(analysis_type="steady")
-TotalSol = fem_solver.Solve(formulation=formulation, mesh=mesh, material=material,
+solution = fem_solver.Solve(formulation=formulation, mesh=mesh, material=material,
                             boundary_condition=boundary_condition)
 
+# export results to vtk file
+solution.WriteVTK('steady1d_addi')
+
 # make an output for the data
-Output(mesh.points, TotalSol, 'addi')
+Output(mesh, solution.sol, 'addi')
 
